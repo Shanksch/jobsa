@@ -1,0 +1,107 @@
+@import "tailwindcss";
+
+/*
+ * JobSA Design System — CSS-first Tailwind v4 configuration.
+ *
+ * This file defines the full theme via @theme and CSS custom properties.
+ * Both apps (extension + dashboard) import this file as their design token source.
+ * Dark mode is class-based: add .dark to <html> to switch themes.
+ */
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  /* ─── Colors (mapped from CSS custom properties for theme switching) ─── */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  /* ─── Border Radius ─── */
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+
+  /* ─── Typography ─── */
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif,
+    "Apple Color Emoji", "Segoe UI Emoji";
+  --font-mono: "JetBrains Mono", ui-monospace, "Cascadia Code", "Source Code Pro",
+    monospace;
+}
+
+/* ─── Light Theme (default) ─────────────────────────────── */
+:root {
+  --radius: 0.625rem;
+  --background: oklch(0.985 0.002 247.839);
+  --foreground: oklch(0.145 0.017 261.692);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0.017 261.692);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0.017 261.692);
+  --primary: oklch(0.392 0.145 265.754);
+  --primary-foreground: oklch(0.984 0.003 247.858);
+  --secondary: oklch(0.929 0.013 255.508);
+  --secondary-foreground: oklch(0.234 0.034 264.544);
+  --muted: oklch(0.929 0.013 255.508);
+  --muted-foreground: oklch(0.556 0.022 257.282);
+  --accent: oklch(0.929 0.013 255.508);
+  --accent-foreground: oklch(0.234 0.034 264.544);
+  --destructive: oklch(0.577 0.245 27.325);
+  --destructive-foreground: oklch(0.984 0.003 247.858);
+  --border: oklch(0.879 0.02 252.894);
+  --input: oklch(0.879 0.02 252.894);
+  --ring: oklch(0.392 0.145 265.754);
+}
+
+/* ─── Dark Theme ────────────────────────────────────────── */
+.dark {
+  --background: oklch(0.141 0.019 261.702);
+  --foreground: oklch(0.984 0.003 247.858);
+  --card: oklch(0.18 0.022 262.15);
+  --card-foreground: oklch(0.984 0.003 247.858);
+  --popover: oklch(0.18 0.022 262.15);
+  --popover-foreground: oklch(0.984 0.003 247.858);
+  --primary: oklch(0.623 0.214 259.815);
+  --primary-foreground: oklch(0.145 0.017 261.692);
+  --secondary: oklch(0.269 0.031 264.052);
+  --secondary-foreground: oklch(0.984 0.003 247.858);
+  --muted: oklch(0.269 0.031 264.052);
+  --muted-foreground: oklch(0.651 0.025 257.678);
+  --accent: oklch(0.269 0.031 264.052);
+  --accent-foreground: oklch(0.984 0.003 247.858);
+  --destructive: oklch(0.577 0.245 27.325);
+  --destructive-foreground: oklch(0.984 0.003 247.858);
+  --border: oklch(0.303 0.033 263.832);
+  --input: oklch(0.303 0.033 263.832);
+  --ring: oklch(0.623 0.214 259.815);
+}
+
+/* ─── Base Styles ───────────────────────────────────────── */
+* {
+  border-color: var(--border);
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}

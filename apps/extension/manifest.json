@@ -1,0 +1,39 @@
+{
+  "manifest_version": 3,
+  "name": "JobSA — AI Job Application Copilot",
+  "description": "Intelligently autofill job applications across ATS platforms with AI-powered matching and human review.",
+  "version": "0.1.0",
+  "icons": {
+    "16": "public/icons/icon-16.png",
+    "48": "public/icons/icon-48.png",
+    "128": "public/icons/icon-128.png"
+  },
+  "action": {
+    "default_popup": "src/popup/index.html",
+    "default_icon": {
+      "16": "public/icons/icon-16.png",
+      "48": "public/icons/icon-48.png"
+    }
+  },
+  "background": {
+    "service_worker": "src/background/service-worker.ts",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://boards.greenhouse.io/*",
+        "https://jobs.greenhouse.io/*",
+        "https://jobs.lever.co/*"
+      ],
+      "js": ["src/content/index.ts"]
+    }
+  ],
+  "permissions": [
+    "storage",
+    "activeTab"
+  ],
+  "host_permissions": [
+    "http://localhost:8000/*"
+  ]
+}
