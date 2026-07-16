@@ -16,6 +16,8 @@ from app.config import settings
 from app.core.logging import setup_logging
 from app.core.middleware import RequestIDMiddleware
 from app.api.routes.health import router as health_router
+from app.api.routes.resumes import router as resumes_router
+from app.api.routes.autofill import router as autofill_router
 
 
 logger = structlog.get_logger()
@@ -32,13 +34,11 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         version=settings.app_version,
         debug=settings.debug,
     )
-    # Phase 1+: initialize DB pool, Redis connection, etc.
 
     yield
 
     # ── Shutdown ──
     logger.info("application_shutdown")
-    # Phase 1+: close DB pool, Redis connection, etc.
 
 
 def create_app() -> FastAPI:
@@ -65,6 +65,8 @@ def create_app() -> FastAPI:
 
     # ── Routers ──
     app.include_router(health_router)
+    app.include_router(resumes_router, prefix="/api")
+    app.include_router(autofill_router, prefix="/api")
 
     return app
 

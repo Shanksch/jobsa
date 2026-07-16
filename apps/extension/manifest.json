@@ -22,11 +22,17 @@
   "content_scripts": [
     {
       "matches": [
-        "https://boards.greenhouse.io/*",
-        "https://jobs.greenhouse.io/*",
-        "https://jobs.lever.co/*"
+        "<all_urls>"
       ],
+      "all_frames": true,
       "js": ["src/content/index.ts"]
+    },
+    {
+      "matches": [
+        "http://localhost:5173/*",
+        "http://127.0.0.1:5173/*"
+      ],
+      "js": ["src/content/auth-sync.ts"]
     }
   ],
   "permissions": [

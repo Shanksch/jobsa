@@ -1,34 +1,21 @@
-import { useState, useEffect, useCallback } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@jobsa/ui";
 import type { HealthResponse } from "@jobsa/shared";
 import { fetchHealth } from "../lib/api";
 
-type ConnectionStatus = "checking" | "connected" | "disconnected";
-
 export function Home() {
-  const [status, setStatus] = useState<ConnectionStatus>("checking");
-  const [health, setHealth] = useState<HealthResponse | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const {
+    data: health,
+    isLoading,
+    isError,
+    error,
+    refetch,
+  } = useQuery<HealthResponse>({
+    queryKey: ["health"],
+    queryFn: fetchHealth,
+  });
 
-  const checkHealth = useCallback(async () => {
-    setStatus("checking");
-    setError(null);
-
-    try {
-      const data = await fetchHealth();
-      setHealth(data);
-      setStatus("connected");
-    } catch (err) {
-      setStatus("disconnected");
-      setError(
-        err instanceof Error ? err.message : "Failed to connect to backend"
-      );
-    }
-  }, []);
-
-  useEffect(() => {
-    checkHealth();
-  }, [checkHealth]);
+  const status = isLoading ? "checking" : isError ? "disconnected" : "connected";
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -112,11 +99,11 @@ export function Home() {
               </div>
             )}
 
-            {error && (
+            {isError && (
               <div className="mt-4 rounded-lg bg-destructive/10 p-3">
                 <p className="text-xs text-destructive">
                   <span className="font-semibold">Error: </span>
-                  {error}
+                  {error instanceof Error ? error.message : "Failed to connect"}
                 </p>
                 <p className="mt-1 text-[11px] text-destructive/70">
                   Make sure the backend is running:{" "}
@@ -132,7 +119,7 @@ export function Home() {
                 variant="outline"
                 size="sm"
                 className="flex-1"
-                onClick={checkHealth}
+                onClick={() => refetch()}
               >
                 <svg
                   className="size-3.5"
@@ -170,7 +157,7 @@ export function Home() {
 
           {/* Phase info */}
           <p className="mt-6 text-center text-xs text-muted-foreground/50">
-            Phase 0 — Monorepo scaffold + extension ↔ backend round trip
+            Phase 1 — Career Knowledge Base + Profile CRUD + Resume Manager
           </p>
         </div>
       </div>

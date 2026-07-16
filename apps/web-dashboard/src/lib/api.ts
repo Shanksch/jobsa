@@ -1,20 +1,282 @@
-import type { HealthResponse } from "@jobsa/shared";
+import type {
+  HealthResponse,
+  UserProfile,
+  Resume,
+  ResumeListItem,
+  Education,
+  WorkExperience,
+  Project,
+  UserSkill,
+  Certification,
+  Achievement,
+  Publication,
+  Application,
+  ApplicationListItem,
+  ApplicationStats,
+} from "@jobsa/shared";
+
+import { supabase } from "./supabase.js";
 
 const BACKEND_URL = "http://localhost:8000";
 
-/**
- * Fetch backend health status.
- */
-export async function fetchHealth(): Promise<HealthResponse> {
-  const response = await fetch(`${BACKEND_URL}/api/health`, {
-    method: "GET",
-    headers: { Accept: "application/json" },
-    signal: AbortSignal.timeout(5000),
+async function request<T>(
+  path: string,
+  options: RequestInit = {}
+): Promise<T> {
+  const headers = new Headers(options.headers);
+  if (!headers.has("Content-Type") && !(options.body instanceof FormData)) {
+    headers.set("Content-Type", "application/json");
+  }
+  headers.set("Accept", "application/json");
+
+  // Get current session token and attach it
+  const { data: { session } } = await supabase.auth.getSession();
+  if (session?.access_token) {
+    headers.set("Authorization", `Bearer ${session.access_token}`);
+  }
+
+  const response = await fetch(`${BACKEND_URL}${path}`, {
+    ...options,
+    headers,
   });
 
+  if (response.status === 204) {
+    return {} as T;
+  }
+
   if (!response.ok) {
-    throw new Error(`Backend returned HTTP ${response.status}`);
+    let message = `API request failed with status ${response.status}`;
+    try {
+      const errData = await response.json();
+      message = errData.detail || message;
+    } catch {
+      // Ignore
+    }
+    throw new Error(message);
   }
 
   return response.json();
+}
+
+export const fetchHealth = (): Promise<HealthResponse> =>
+  request<HealthResponse>("/api/health");
+
+async function getCurrentUserId(): Promise<string> {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session?.user?.id) throw new Error("Not authenticated");
+  return session.user.id;
+}
+
+export const api = {
+  profile: {
+    get: async () => {
+      const userId = await getCurrentUserId();
+      const { data, error } = await supabase.from("user_profiles").select("*").eq("id", userId).single();
+      if (error) throw error;
+      return data;
+    },
+    create: async (profileData: Partial<UserProfile>) => {
+      const userId = await getCurrentUserId();
+      const { data, error } = await supabase.from("user_profiles").insert([{ id: userId, ...profileData }]).select().single();
+      if (error) throw error;
+      return data;
+    },
+    update: async (profileData: Partial<UserProfile>) => {
+      const userId = await getCurrentUserId();
+      const { data, error } = await supabase.from("user_profiles").update(profileData).eq("id", userId).select().single();
+      if (error) throw error;
+      return data;
+    },
+    delete: async () => {
+      const userId = await getCurrentUserId();
+      const { error } = await supabase.from("user_profiles").delete().eq("id", userId);
+      if (error) throw error;
+    },
+  },
+
+  resumes: {
+    list: () => request<ResumeListItem[]>("/api/resumes"),
+    get: (id: string) => request<Resume>(`/api/resumes/${id}`),
+    upload: (file: File, name: string, isPrimary = false) => {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("name", name);
+      formData.append("is_primary", String(isPrimary));
+      return request<Resume>("/api/resumes", {
+        method: "POST",
+        body: formData,
+      });
+    },
+    update: (id: string, data: { name?: string; is_primary?: boolean }) =>
+      request<Resume>(`/api/resumes/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify(data),
+      }),
+    delete: (id: string) =>
+      request<void>(`/api/resumes/${id}`, {
+        method: "DELETE",
+      }),
+    import: (id: string) =>
+      request<{ detail: string }>(`/api/resumes/${id}/import`, {
+        method: "POST",
+      }),
+    getDownloadUrl: (id: string) => `${BACKEND_URL}/api/resumes/${id}/download`,
+  },
+
+  knowledge: {
+    education: createKnowledgeTableApi<Education>("education"),
+    experience: createKnowledgeTableApi<WorkExperience>("work_experience"),
+    projects: createKnowledgeTableApi<Project>("projects"),
+    skills: {
+      list: async () => {
+        const userId = await getCurrentUserId();
+        const { data, error } = await supabase
+          .from("user_skills")
+          .select("*, skill:skills(*)")
+          .eq("profile_id", userId);
+        if (error) throw error;
+        return data as UserSkill[];
+      },
+      create: async (payload: any) => {
+        const userId = await getCurrentUserId();
+        let skillId = payload.skill_id;
+        
+        // If skill object is provided, find or create the global skill
+        if (!skillId && payload.skill?.name) {
+          const { data: existing } = await supabase
+            .from("skills")
+            .select("id")
+            .ilike("name", payload.skill.name)
+            .maybeSingle();
+            
+          if (existing) {
+            skillId = existing.id;
+          } else {
+            const { data: newSkill, error: skillError } = await supabase
+              .from("skills")
+              .insert([{ name: payload.skill.name, category: payload.skill.category }])
+              .select()
+              .single();
+            if (skillError) throw skillError;
+            skillId = newSkill.id;
+          }
+        }
+        
+        const { skill, ...userSkillData } = payload;
+        
+        const { data, error } = await supabase
+          .from("user_skills")
+          .insert([{ profile_id: userId, skill_id: skillId, ...userSkillData }])
+          .select("*, skill:skills(*)")
+          .single();
+        if (error) throw error;
+        return data as UserSkill;
+      },
+      update: async (id: string, payload: any) => {
+        const { skill, ...userSkillData } = payload;
+        const { data, error } = await supabase
+          .from("user_skills")
+          .update(userSkillData)
+          .eq("id", id)
+          .select("*, skill:skills(*)")
+          .single();
+        if (error) throw error;
+        return data as UserSkill;
+      },
+      delete: async (id: string) => {
+        const { error } = await supabase.from("user_skills").delete().eq("id", id);
+        if (error) throw error;
+      }
+    },
+    certifications: createKnowledgeTableApi<Certification>("certifications"),
+    achievements: createKnowledgeTableApi<Achievement>("achievements"),
+    publications: createKnowledgeTableApi<Publication>("publications"),
+  },
+
+  applications: {
+    list: async (params?: { status?: string; search?: string }) => {
+      const userId = await getCurrentUserId();
+      let query = supabase.from("applications").select("*").eq("profile_id", userId).order("updated_at", { ascending: false });
+      
+      if (params?.status) {
+        query = query.eq("status", params.status);
+      }
+      if (params?.search) {
+        query = query.ilike("company_name", `%${params.search}%`);
+      }
+      
+      const { data, error } = await query;
+      if (error) throw error;
+      return data as ApplicationListItem[];
+    },
+    get: async (id: string) => {
+      const { data, error } = await supabase.from("applications").select("*").eq("id", id).single();
+      if (error) throw error;
+      return data as Application;
+    },
+    create: async (appData: Partial<Application>) => {
+      const userId = await getCurrentUserId();
+      const { data, error } = await supabase.from("applications").insert([{ profile_id: userId, ...appData }]).select().single();
+      if (error) throw error;
+      return data as Application;
+    },
+    update: async (id: string, appData: Partial<Application>) => {
+      const { data, error } = await supabase.from("applications").update({ ...appData, updated_at: new Date().toISOString() }).eq("id", id).select().single();
+      if (error) throw error;
+      return data as Application;
+    },
+    delete: async (id: string) => {
+      const { error } = await supabase.from("applications").delete().eq("id", id);
+      if (error) throw error;
+    },
+    stats: async () => {
+      const userId = await getCurrentUserId();
+      const { data, error } = await supabase.from("applications").select("status").eq("profile_id", userId);
+      if (error) throw error;
+      
+      const stats = {
+        total: data.length,
+        bookmarked: 0,
+        applying: 0,
+        applied: 0,
+        interviewing: 0,
+        offer: 0,
+        rejected: 0
+      };
+      
+      for (const app of data) {
+        const status = app.status as keyof Omit<ApplicationStats, 'total'>;
+        if (stats[status] !== undefined) {
+          stats[status]++;
+        }
+      }
+      return stats as ApplicationStats;
+    },
+  },
+};
+
+function createKnowledgeTableApi<T>(tableName: string) {
+  return {
+    list: async () => {
+      const userId = await getCurrentUserId();
+      const { data, error } = await supabase.from(tableName).select("*").eq("profile_id", userId);
+      if (error) throw error;
+      return data as T[];
+    },
+    create: async (payload: any) => {
+      const userId = await getCurrentUserId();
+      const { data, error } = await supabase.from(tableName).insert([{ profile_id: userId, ...payload }]).select().single();
+      if (error) throw error;
+      return data as T;
+    },
+    update: async (id: string, payload: any) => {
+      const { data, error } = await supabase.from(tableName).update(payload).eq("id", id).select().single();
+      if (error) throw error;
+      return data as T;
+    },
+    delete: async (id: string) => {
+      const { error } = await supabase.from(tableName).delete().eq("id", id);
+      if (error) throw error;
+    }
+  };
 }
