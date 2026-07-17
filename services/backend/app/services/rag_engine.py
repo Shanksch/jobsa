@@ -1,9 +1,14 @@
 """
 RAG Engine service.
 
-This service retrieves the candidate's profile, primary resume, and knowledge base
-entries from Supabase. It constructs a context-rich prompt and uses an LLM to
-generate autofill answers for a given job application form schema.
+Retrieves the candidate's core profile fields (always included - small
+and almost always relevant) plus the top chunks retrieved for *this*
+form's fields (via pgvector), then asks the LLM to fill in the form.
+
+This replaces the previous version, which fetched and pasted every
+resume, work-experience row, and skill into every prompt regardless of
+form size - fine for one resume and a dozen rows, but it doesn't scale
+and costs more tokens than necessary as a profile's history grows.
 """
 
 import instructor
@@ -11,7 +16,7 @@ from litellm import acompletion
 
 from app.config import settings
 from app.schemas.autofill import FormSchema, AutofillResponse
-from app.core.auth import supabase
+from app.services.retrieval import retrieve_for_form
 
 
 async def generate_autofill_answers(
@@ -22,23 +27,8 @@ async def generate_autofill_answers(
     Generate answers for the given form schema using the user's data.
     """
     profile_id = profile["id"]
-    
-    # 1. Fetch user data context
-    
-    # Primary resume
-    res = supabase.table("resumes").select("*").eq("profile_id", profile_id).eq("is_primary", True).execute()
-    resume = res.data[0] if res.data else None
-    
-    # Knowledge items
-    education = supabase.table("education").select("*").eq("profile_id", profile_id).execute().data
-    experience = supabase.table("work_experience").select("*").eq("profile_id", profile_id).execute().data
-    projects = supabase.table("projects").select("*").eq("profile_id", profile_id).execute().data
-    skills = supabase.table("user_skills").select("proficiency, years_experience, skills(name)").eq("profile_id", profile_id).execute().data
 
-    # 2. Construct context string
-    context_parts = []
-    
-    # Profile context
+    # 1. Always-included, cheap context: the profile's own top-level fields.
     profile_ctx = f"""
     Name: {profile.get('full_name')}
     Email: {profile.get('email')}
@@ -52,47 +42,26 @@ async def generate_autofill_answers(
     Notice Period: {profile.get('notice_period') or ''}
     Work Authorization: {profile.get('work_authorization') or ''}
     """
-    context_parts.append(f"--- PROFILE ---\n{profile_ctx}")
+    context_parts = [f"--- PROFILE ---\n{profile_ctx.strip()}"]
 
-    # Resume context (if parsed)
-    if resume and resume.get("parsed_text"):
-        context_parts.append(f"--- PRIMARY RESUME ---\n{resume['parsed_text']}")
-
-    # Experience context
-    if experience:
-        exp_ctx = ""
-        for exp in experience:
-            exp_ctx += f"- {exp.get('title')} at {exp.get('company')} ({exp.get('start_date')} to {exp.get('end_date') or 'Present'})\n  {exp.get('description') or ''}\n"
-        context_parts.append(f"--- EXPERIENCE ---\n{exp_ctx}")
-
-    # Education context
-    if education:
-        edu_ctx = ""
-        for edu in education:
-            edu_ctx += f"- {edu.get('degree')} in {edu.get('field_of_study')} from {edu.get('institution')} ({edu.get('start_date')} to {edu.get('end_date')})\n"
-        context_parts.append(f"--- EDUCATION ---\n{edu_ctx}")
-
-    if skills:
-        skill_list = []
-        for s in skills:
-            skill_name = s.get("skills", {}).get("name")
-            if skill_name:
-                prof = f" ({s.get('proficiency')})" if s.get('proficiency') else ""
-                yoe = f" - {s.get('years_experience')} yrs" if s.get('years_experience') else ""
-                skill_list.append(f"{skill_name}{prof}{yoe}")
-        skill_ctx = ", ".join(skill_list)
-        context_parts.append(f"--- SKILLS ---\n{skill_ctx}")
+    # 2. Retrieved context: only the chunks relevant to this form's fields,
+    #    instead of every resume/experience/skill row on file.
+    field_labels = [field.label for field in form_schema.fields]
+    chunks = await retrieve_for_form(profile_id, field_labels, per_field_k=4)
+    if chunks:
+        retrieved_ctx = "\n\n".join(f"[{c['source']}] {c['chunk_text']}" for c in chunks)
+        context_parts.append(f"--- RELEVANT BACKGROUND ---\n{retrieved_ctx}")
 
     full_context = "\n\n".join(context_parts)
 
-    # 3. Construct form prompt
+    # 3. Construct form prompt (unchanged)
     form_fields_json = form_schema.model_dump_json(indent=2)
-    
+
     system_prompt = """
     You are an expert ATS (Applicant Tracking System) job application autofill assistant.
     Your task is to provide the best possible answers for the form fields provided by the user,
     based on the provided CANDIDATE CONTEXT.
-    
+
     Rules:
     1. For dropdowns (options provided), you must return an exact match to one of the options, or the closest match.
     2. For checkboxes/booleans, return "true" or "false".
@@ -103,14 +72,14 @@ async def generate_autofill_answers(
     user_prompt = f"""
     CANDIDATE CONTEXT:
     {full_context}
-    
+
     FORM SCHEMA TO FILL:
     {form_fields_json}
     """
 
-    # 4. Generate with LLM
+    # 4. Generate with LLM (unchanged)
     client = instructor.from_litellm(acompletion)
-    
+
     try:
         response_model: AutofillResponse = await client.chat.completions.create(
             model=settings.litellm_model,

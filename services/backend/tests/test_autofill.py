@@ -1,13 +1,11 @@
 import json
 import pytest
 from httpx import AsyncClient
-from unittest.mock import patch
-
-from app.models.profile import UserProfile
+from unittest.mock import patch, AsyncMock
 
 
 @pytest.mark.asyncio
-async def test_autofill_endpoint(client: AsyncClient, test_profile: UserProfile):
+async def test_autofill_endpoint(client: AsyncClient, test_profile: dict):
     """Test the autofill endpoint with a mocked LLM response."""
     
     form_schema = {
@@ -23,22 +21,17 @@ async def test_autofill_endpoint(client: AsyncClient, test_profile: UserProfile)
         ]
     }
 
-    mock_llm_response = {
-        "answers": {
-            "first_name": "John"
-        }
-    }
+    from app.schemas.autofill import AutofillResponse
 
-    class MockMessage:
-        content = json.dumps(mock_llm_response)
+    mock_response = AutofillResponse(answers={"first_name": "John"})
 
-    class MockChoice:
-        message = MockMessage()
-
-    class MockResponse:
-        choices = [MockChoice()]
-
-    with patch("app.services.rag_engine.acompletion", return_value=MockResponse()):
+    with patch("app.services.rag_engine.instructor.from_litellm") as mock_instructor, \
+         patch("app.services.rag_engine.retrieve_for_form", new_callable=AsyncMock) as mock_retrieve:
+        mock_client = AsyncMock()
+        mock_client.chat.completions.create.return_value = mock_response
+        mock_instructor.return_value = mock_client
+        
+        mock_retrieve.return_value = []
         response = await client.post("/api/autofill", json=form_schema)
 
     assert response.status_code == 200

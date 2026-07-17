@@ -51,6 +51,7 @@ class Settings(BaseSettings):
     llm_model: str = "llama-3.3-70b-versatile"
     groq_api_key: str = ""
     openai_api_key: str = ""
+    huggingface_api_key: str = ""
 
     # Ollama fallback (for local dev without API keys)
     ollama_base_url: str = "http://localhost:11434"
@@ -83,6 +84,8 @@ if settings.groq_api_key:
     os.environ["GROQ_API_KEY"] = settings.groq_api_key
 if settings.openai_api_key:
     os.environ["OPENAI_API_KEY"] = settings.openai_api_key
+if settings.huggingface_api_key:
+    os.environ["HUGGINGFACE_API_KEY"] = settings.huggingface_api_key
 if settings.supabase_url:
     os.environ["SUPABASE_URL"] = settings.supabase_url
 if settings.supabase_anon_key:

@@ -13,6 +13,7 @@ from app.core.auth import get_current_user, supabase
 from app.schemas.resume import ResumeListItem, ResumeResponse, ResumeUpdate
 from app.services.storage import storage_service
 from app.services.resume_parser import resume_parser_service
+from app.services.ingestion import reindex_profile
 
 router = APIRouter(prefix="/resumes", tags=["resumes"])
 
@@ -118,6 +119,9 @@ async def upload_resume(
     # 8. Auto-populate all knowledge base tables
     _do_import_resume_sections(profile["id"], sections)
 
+    # 9. Reindex the profile's resume chunks for vector retrieval
+    await reindex_profile(profile["id"])
+
     return insert_res.data[0]
 
 
@@ -141,11 +145,11 @@ def _do_import_resume_sections(profile_id: str, sections: dict):
 
     # Education
     if sections.get("education"):
-        try:
-            for edu in sections["education"]:
+        for edu in sections["education"]:
+            try:
                 try:
                     gpa_val = float(edu.get("gpa")) if edu.get("gpa") else None
-                except ValueError:
+                except (ValueError, TypeError):
                     gpa_val = None
                     
                 inst = edu.get("institution", "Unknown")
@@ -170,13 +174,13 @@ def _do_import_resume_sections(profile_id: str, sections: dict):
                     supabase.table("education").insert(edu_dict).execute()
                 else:
                     supabase.table("education").update(edu_dict).eq("id", existing.data[0]["id"]).execute()
-        except Exception as e:
-            print(f"Error inserting education: {e}")
+            except Exception as e:
+                print(f"Error inserting education: {e}")
 
     # Work Experience
     if sections.get("work_experience"):
-        try:
-            for work in sections["work_experience"]:
+        for work in sections["work_experience"]:
+            try:
                 comp = work.get("company", "Unknown")
                 job_title = work.get("title", "Unknown")
                 
@@ -190,8 +194,8 @@ def _do_import_resume_sections(profile_id: str, sections: dict):
                     "start_date": parse_date(work.get("start_date")),
                     "end_date": parse_date(work.get("end_date")),
                     "description": work.get("description"),
-                    "highlights": work.get("highlights", []),
-                    "technologies": work.get("technologies", []),
+                    "highlights": work.get("highlights") or [],
+                    "technologies": work.get("technologies") or [],
                     "is_current": work.get("is_current", False)
                 }
                 
@@ -200,13 +204,13 @@ def _do_import_resume_sections(profile_id: str, sections: dict):
                     supabase.table("work_experience").insert(work_dict).execute()
                 else:
                     supabase.table("work_experience").update(work_dict).eq("id", existing.data[0]["id"]).execute()
-        except Exception as e:
-            print(f"Error inserting work experience: {e}")
+            except Exception as e:
+                print(f"Error inserting work experience: {e}")
 
     # Projects
     if sections.get("projects"):
-        try:
-            for proj in sections["projects"]:
+        for proj in sections["projects"]:
+            try:
                 proj_name = proj.get("name", "Unknown")
                 
                 existing = supabase.table("projects").select("id").eq("profile_id", profile_id).eq("name", proj_name).execute()
@@ -216,8 +220,8 @@ def _do_import_resume_sections(profile_id: str, sections: dict):
                     "name": proj_name,
                     "description": proj.get("description"),
                     "url": proj.get("url"),
-                    "technologies": proj.get("technologies", []),
-                    "highlights": proj.get("highlights", []),
+                    "technologies": proj.get("technologies") or [],
+                    "highlights": proj.get("highlights") or [],
                     "start_date": parse_date(proj.get("start_date")),
                     "end_date": parse_date(proj.get("end_date"))
                 }
@@ -227,16 +231,16 @@ def _do_import_resume_sections(profile_id: str, sections: dict):
                     supabase.table("projects").insert(proj_dict).execute()
                 else:
                     supabase.table("projects").update(proj_dict).eq("id", existing.data[0]["id"]).execute()
-        except Exception as e:
-            print(f"Error inserting projects: {e}")
+            except Exception as e:
+                print(f"Error inserting projects: {e}")
 
     # Skills
     if sections.get("skills"):
-        try:
-            for skill in sections["skills"]:
+        for skill in sections["skills"]:
+            try:
                 try:
                     yoe = float(skill.get("years_experience")) if skill.get("years_experience") else None
-                except ValueError:
+                except (ValueError, TypeError):
                     yoe = None
                     
                 skill_name = skill.get("name", "Unknown").strip()
@@ -271,13 +275,13 @@ def _do_import_resume_sections(profile_id: str, sections: dict):
                         "proficiency": skill.get("proficiency"),
                         "years_experience": yoe
                     }).eq("id", user_skill_res.data[0]["id"]).execute()
-        except Exception as e:
-            print(f"Error inserting skills: {e}")
+            except Exception as e:
+                print(f"Error inserting skills: {e}")
 
     # Certifications
     if sections.get("certifications"):
-        try:
-            for cert in sections["certifications"]:
+        for cert in sections["certifications"]:
+            try:
                 cert_name = cert.get("name", "Unknown")
                 
                 existing = supabase.table("certifications").select("id").eq("profile_id", profile_id).eq("name", cert_name).execute()
@@ -297,8 +301,8 @@ def _do_import_resume_sections(profile_id: str, sections: dict):
                     supabase.table("certifications").insert(cert_dict).execute()
                 else:
                     supabase.table("certifications").update(cert_dict).eq("id", existing.data[0]["id"]).execute()
-        except Exception as e:
-            print(f"Error inserting certifications: {e}")
+            except Exception as e:
+                print(f"Error inserting certifications: {e}")
 
     # Summary
     if sections.get("summary"):
@@ -436,5 +440,8 @@ async def import_resume_to_knowledge_base(
 
     # 8. Auto-populate all knowledge base tables
     _do_import_resume_sections(profile_id, sections)
+
+    # 9. Reindex the profile's resume chunks for vector retrieval
+    await reindex_profile(profile_id)
 
     return {"detail": "Successfully imported to knowledge base"}

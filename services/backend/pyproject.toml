@@ -27,6 +27,7 @@ dependencies = [
     "aiofiles>=24.1.0",
     # Vector embeddings in PostgreSQL
     "pgvector>=0.3.0",
+    "fastembed>=0.4.0",
 ]
 
 [project.optional-dependencies]
