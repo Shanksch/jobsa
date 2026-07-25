@@ -195,9 +195,42 @@ function injectUI() {
   document.body.appendChild(container);
 }
 
+function isJobApplicationPage(): boolean {
+  const url = window.location.href.toLowerCase();
+  const atsDomains = [
+    'workdayjobs.com',
+    'greenhouse.io',
+    'lever.co',
+    'ashbyhq.com',
+    'smartrecruiters.com',
+    'breezy.hr',
+    'workable.com',
+    'icims.com',
+    'taleo.net',
+    'bamboohr.com',
+    'jobs.',
+    'careers.'
+  ];
+  
+  if (atsDomains.some(domain => url.includes(domain))) {
+    return true;
+  }
+  
+  if (url.includes('/apply') || url.includes('/application')) {
+    return true;
+  }
+  
+  return false;
+}
+
 // Only inject if it looks like a job application (has form fields)
 // Give ATS scripts a moment to render or poll until they exist
 const checkInterval = setInterval(() => {
+  if (!isJobApplicationPage()) {
+    // If it's definitely not a job page, we can stop polling
+    return;
+  }
+
   const inputs = document.querySelectorAll('input, select, textarea');
   if (inputs.length > 3 && !document.getElementById('jobsa-overlay')) {
     injectUI();

@@ -12,7 +12,7 @@ class Settings(BaseSettings):
     """Application settings loaded from environment variables."""
 
     model_config = SettingsConfigDict(
-        env_file=["../../.env", ".env"],
+        env_file=["../../.env", "../.env", ".env"],
         env_file_encoding="utf-8",
         case_sensitive=False,
         extra="ignore",
@@ -48,7 +48,7 @@ class Settings(BaseSettings):
 
     # ─── LLM (via LiteLLM — supports Groq, OpenAI, Ollama, etc.) ──
     llm_provider: str = "groq"
-    llm_model: str = "llama-3.3-70b-versatile"
+    llm_model: str = "llama-3.1-8b-instant"
     groq_api_key: str = ""
     openai_api_key: str = ""
     huggingface_api_key: str = ""

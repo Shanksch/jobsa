@@ -109,6 +109,9 @@ async def reindex_profile(profile_id: str) -> int:
     """
     Rebuild every chunk for a profile. Returns the number of chunks written.
     """
+    if not supabase:
+        raise ValueError("Supabase client is not configured. Check your environment variables.")
+
     sources: list[tuple[str, str | None, str]] = []  # (source, source_id, text)
 
     # Primary resume — the only free-form long text, so the only thing

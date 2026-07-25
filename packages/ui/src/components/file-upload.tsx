@@ -91,10 +91,12 @@ export function FileUpload({
         onDragOver={handleDrag}
         onDragLeave={handleDrag}
         onDrop={handleDrop}
+        onClick={!selectedFile ? onButtonClick : undefined}
         className={cn(
-          "relative flex flex-col items-center justify-center min-h-[180px] p-6 text-center border-2 border-dashed rounded-xl bg-card transition-all duration-200",
+          "relative flex flex-col items-center justify-center min-h-[160px] p-6 text-center border rounded-lg bg-card transition-all duration-200",
+          !selectedFile && "cursor-pointer group hover:bg-muted/50",
           dragActive
-            ? "border-primary bg-primary/5"
+            ? "border-primary bg-primary/5 shadow-[0_0_15px_rgba(0,229,153,0.1)]"
             : "border-border hover:border-primary/50",
           isLoading && "opacity-60 pointer-events-none"
         )}
@@ -103,6 +105,7 @@ export function FileUpload({
           ref={inputRef}
           type="file"
           className="hidden"
+          style={{ display: 'none' }}
           accept={accept}
           onChange={handleChange}
           disabled={isLoading}
@@ -110,54 +113,51 @@ export function FileUpload({
 
         {selectedFile ? (
           <div className="flex flex-col items-center gap-3">
-            <div className="flex size-12 items-center justify-center rounded-xl bg-primary/10 text-primary">
+            <div className="flex size-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
               {isLoading ? (
-                <div className="size-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                <div className="size-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
               ) : (
-                <FileText className="size-6" />
+                <FileText className="size-5" />
               )}
             </div>
             <div>
-              <p className="text-sm font-medium text-foreground max-w-[240px] truncate">
+              <p className="text-sm font-semibold text-foreground max-w-[240px] truncate">
                 {selectedFile.name}
               </p>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-muted-foreground mt-0.5">
                 {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
               </p>
             </div>
             {!isLoading && (
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 mt-1">
                 <CheckCircle2 className="size-4 text-emerald-500" />
-                <span className="text-xs text-emerald-600 font-medium">Ready</span>
+                <span className="text-xs text-emerald-600 font-medium tracking-tight">Ready</span>
               </div>
             )}
             <Button
               variant="outline"
               size="sm"
-              onClick={onButtonClick}
+              className="mt-3 text-xs h-8"
+              onClick={(e) => {
+                e.stopPropagation();
+                onButtonClick();
+              }}
               disabled={isLoading}
             >
               Choose different file
             </Button>
           </div>
         ) : (
-          <div className="flex flex-col items-center gap-3">
-            <div className="flex size-12 items-center justify-center rounded-xl bg-muted text-muted-foreground group-hover:text-primary transition-colors">
-              <UploadCloud className="size-6" />
+          <div className="flex flex-col items-center gap-2">
+            <div className="flex size-10 items-center justify-center rounded-full bg-muted text-muted-foreground group-hover:text-primary transition-colors group-hover:scale-110 duration-200">
+              <UploadCloud className="size-5" />
             </div>
-            <div>
+            <div className="mt-2">
               <p className="text-sm font-medium text-foreground">
-                Drag and drop your resume here, or{" "}
-                <button
-                  type="button"
-                  onClick={onButtonClick}
-                  className="text-primary hover:underline font-semibold cursor-pointer"
-                >
-                  browse
-                </button>
+                Click or drag file to upload
               </p>
               <p className="text-xs text-muted-foreground mt-1">
-                Supports PDF, DOCX (Max {maxSizeMB}MB)
+                PDF or DOCX up to {maxSizeMB}MB
               </p>
             </div>
           </div>

@@ -40,57 +40,78 @@
   --radius-2xl: calc(var(--radius) + 8px);
 
   /* ─── Typography ─── */
-  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif,
+  --font-sans: "SK Concretica", ui-sans-serif, system-ui, sans-serif,
     "Apple Color Emoji", "Segoe UI Emoji";
   --font-mono: "JetBrains Mono", ui-monospace, "Cascadia Code", "Source Code Pro",
     monospace;
+
+  /* ─── Animations ─── */
+  --animate-fade-in: fade-in 0.3s ease-out both;
+  --animate-slide-up: slide-up 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-slide-in-right: slide-in-right 0.3s ease-out both;
+
+  @keyframes fade-in {
+    0% { opacity: 0; }
+    100% { opacity: 1; }
+  }
+  @keyframes slide-up {
+    0% { opacity: 0; transform: translateY(12px); }
+    100% { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes slide-in-right {
+    0% { opacity: 0; transform: translateX(12px); }
+    100% { opacity: 1; transform: translateX(0); }
+  }
+  @keyframes shimmer {
+    100% { transform: translateX(100%); }
+  }
 }
 
 /* ─── Light Theme (default) ─────────────────────────────── */
 :root {
-  --radius: 0.625rem;
-  --background: oklch(0.985 0.002 247.839);
-  --foreground: oklch(0.145 0.017 261.692);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0.017 261.692);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0.017 261.692);
-  --primary: oklch(0.392 0.145 265.754);
-  --primary-foreground: oklch(0.984 0.003 247.858);
-  --secondary: oklch(0.929 0.013 255.508);
-  --secondary-foreground: oklch(0.234 0.034 264.544);
-  --muted: oklch(0.929 0.013 255.508);
-  --muted-foreground: oklch(0.556 0.022 257.282);
-  --accent: oklch(0.929 0.013 255.508);
-  --accent-foreground: oklch(0.234 0.034 264.544);
-  --destructive: oklch(0.577 0.245 27.325);
-  --destructive-foreground: oklch(0.984 0.003 247.858);
-  --border: oklch(0.879 0.02 252.894);
-  --input: oklch(0.879 0.02 252.894);
-  --ring: oklch(0.392 0.145 265.754);
+  --radius: 0.25rem; /* Sharper corners for minimal look */
+  --background: #ffffff;
+  --foreground: #09090b;
+  --card: #ffffff;
+  --card-foreground: #09090b;
+  --popover: #ffffff;
+  --popover-foreground: #09090b;
+  --primary: #00e599; /* Mint Green */
+  --primary-foreground: #09090b;
+  --secondary: #f4f4f5;
+  --secondary-foreground: #18181b;
+  --muted: #f4f4f5;
+  --muted-foreground: #71717a;
+  --accent: #f4f4f5;
+  --accent-foreground: #18181b;
+  --destructive: #ef4444;
+  --destructive-foreground: #fafafa;
+  --border: #e4e4e7;
+  --input: #e4e4e7;
+  --ring: #00e599;
 }
 
 /* ─── Dark Theme ────────────────────────────────────────── */
 .dark {
-  --background: oklch(0.141 0.019 261.702);
-  --foreground: oklch(0.984 0.003 247.858);
-  --card: oklch(0.18 0.022 262.15);
-  --card-foreground: oklch(0.984 0.003 247.858);
-  --popover: oklch(0.18 0.022 262.15);
-  --popover-foreground: oklch(0.984 0.003 247.858);
-  --primary: oklch(0.623 0.214 259.815);
-  --primary-foreground: oklch(0.145 0.017 261.692);
-  --secondary: oklch(0.269 0.031 264.052);
-  --secondary-foreground: oklch(0.984 0.003 247.858);
-  --muted: oklch(0.269 0.031 264.052);
-  --muted-foreground: oklch(0.651 0.025 257.678);
-  --accent: oklch(0.269 0.031 264.052);
-  --accent-foreground: oklch(0.984 0.003 247.858);
-  --destructive: oklch(0.577 0.245 27.325);
-  --destructive-foreground: oklch(0.984 0.003 247.858);
-  --border: oklch(0.303 0.033 263.832);
-  --input: oklch(0.303 0.033 263.832);
-  --ring: oklch(0.623 0.214 259.815);
+  --background: #09090b;
+  --foreground: #fafafa;
+  --card: #09090b;
+  --card-foreground: #fafafa;
+  --popover: #09090b;
+  --popover-foreground: #fafafa;
+  --primary: #00e599; /* Mint Green */
+  --primary-foreground: #09090b;
+  --secondary: #27272a;
+  --secondary-foreground: #fafafa;
+  --muted: #27272a;
+  --muted-foreground: #a1a1aa;
+  --accent: #27272a;
+  --accent-foreground: #fafafa;
+  --destructive: #7f1d1d;
+  --destructive-foreground: #fafafa;
+  --border: #27272a;
+  --input: #27272a;
+  --ring: #00e599;
 }
 
 /* ─── Base Styles ───────────────────────────────────────── */

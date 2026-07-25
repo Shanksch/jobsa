@@ -10,7 +10,7 @@ import {
 import { cn } from "@jobsa/ui";
 
 const navItems = [
-  { label: "Dashboard", path: "/", icon: LayoutDashboard },
+  { label: "Dashboard", path: "/dashboard", icon: LayoutDashboard },
   { label: "Profile", path: "/profile", icon: User },
   { label: "Resumes", path: "/resumes", icon: FileText },
   { label: "Knowledge Base", path: "/knowledge", icon: GraduationCap },

@@ -8,6 +8,7 @@ import { KnowledgeBasePage } from "./pages/KnowledgeBasePage.js";
 import { ApplicationsPage } from "./pages/ApplicationsPage.js";
 import { SettingsPage } from "./pages/SettingsPage.js";
 import { LoginPage } from "./pages/LoginPage.js";
+import { LandingPage } from "./pages/LandingPage.js";
 import { AuthProvider, useAuth } from "./contexts/AuthContext.js";
 import { Toaster } from "@jobsa/ui";
 import { Loader2 } from "lucide-react";
@@ -40,9 +41,10 @@ export function App() {
       <Toaster position="top-right" closeButton richColors />
       <BrowserRouter>
         <Routes>
+          <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route element={<ProtectedRoute />}>
-            <Route path="/" element={<DashboardPage />} />
+            <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/profile" element={<ProfilePage />} />
             <Route path="/resumes" element={<ResumesPage />} />
             <Route path="/resumes/:id" element={<ResumeDetailPage />} />
