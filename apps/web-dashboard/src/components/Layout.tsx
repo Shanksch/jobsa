@@ -6,6 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Toaster } from "@jobsa/ui";
 import { supabase } from "../lib/supabase.js";
 
+
 interface LayoutProps {
   children: React.ReactNode;
 }
@@ -69,8 +70,8 @@ export function Layout({ children }: LayoutProps) {
             <div className="flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium shadow-sm">
               <div
                 className={`size-2 rounded-full transition-colors duration-500 ${connected
-                    ? "bg-primary shadow-[0_0_6px_rgba(0,229,153,0.5)]"
-                    : "bg-destructive shadow-[0_0_6px_rgba(239,68,68,0.5)]"
+                  ? "bg-primary shadow-[0_0_6px_rgba(0,229,153,0.5)]"
+                  : "bg-destructive shadow-[0_0_6px_rgba(239,68,68,0.5)]"
                   }`}
               />
               <span className="text-muted-foreground text-[11px]">

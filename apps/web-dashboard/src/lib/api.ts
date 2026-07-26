@@ -17,7 +17,7 @@ import type {
 
 import { supabase } from "./supabase.js";
 
-const BACKEND_URL = "http://localhost:8000";
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || (import.meta.env.PROD ? "https://jobsa-backend.onrender.com" : "http://localhost:8000");
 
 async function request<T>(
   path: string,
