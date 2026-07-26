@@ -6,6 +6,7 @@ Integrates with storage_service and resume_parser_service to parser uploads.
 """
 
 import uuid
+from typing import Any, cast
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, status, Form
 from fastapi.responses import Response
 
@@ -14,6 +15,8 @@ from app.schemas.resume import ResumeListItem, ResumeResponse, ResumeUpdate
 from app.services.storage import storage_service
 from app.services.resume_parser import resume_parser_service
 from app.services.ingestion import reindex_profile
+
+supabase = cast(Any, supabase)
 
 router = APIRouter(prefix="/resumes", tags=["resumes"])
 
@@ -93,7 +96,7 @@ async def upload_resume(
     sections = parsed_data.sections
     if sections.get("contact"):
         contact = sections["contact"]
-        # Build update dict — only fill fields that are currently empty on the profile
+        # Build update dict — only fill fields that are currently empty or set to defaults
         profile_update = {}
         field_map = {
             "full_name": "full_name",
@@ -103,10 +106,24 @@ async def upload_resume(
             "github_url": "github_url",
             "portfolio_url": "portfolio_url",
         }
+        url_fields = {"linkedin_url", "github_url", "portfolio_url"}
+        # Placeholder defaults that should be treated as "empty"
+        placeholder_defaults = {
+            "full_name": {"User", "user", ""},
+        }
+
         for resume_key, profile_key in field_map.items():
             parsed_val = contact.get(resume_key)
             existing_val = profile.get(profile_key)
-            if parsed_val and not existing_val:
+            # Treat placeholder defaults as empty
+            defaults = placeholder_defaults.get(profile_key, set())
+            is_empty = not existing_val or existing_val in defaults
+            if parsed_val and is_empty:
+                # Sanitize URL fields: prepend https:// if missing
+                if profile_key in url_fields:
+                    parsed_val = parsed_val.strip()
+                    if parsed_val and not parsed_val.startswith(("http://", "https://")):
+                        parsed_val = f"https://{parsed_val}"
                 profile_update[profile_key] = parsed_val
 
         # Also update summary if it's the default placeholder

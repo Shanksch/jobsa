@@ -12,7 +12,7 @@ class Settings(BaseSettings):
     """Application settings loaded from environment variables."""
 
     model_config = SettingsConfigDict(
-        env_file=["../../.env", ".env"],
+        env_file=["../../.env", "../.env", ".env"],
         env_file_encoding="utf-8",
         case_sensitive=False,
         extra="ignore",
@@ -48,10 +48,9 @@ class Settings(BaseSettings):
 
     # ─── LLM (via LiteLLM — supports Groq, OpenAI, Ollama, etc.) ──
     llm_provider: str = "groq"
-    llm_model: str = "llama-3.3-70b-versatile"
+    llm_model: str = "llama-3.1-8b-instant"
     groq_api_key: str = ""
     openai_api_key: str = ""
-    huggingface_api_key: str = ""
 
     # Ollama fallback (for local dev without API keys)
     ollama_base_url: str = "http://localhost:11434"
@@ -84,8 +83,6 @@ if settings.groq_api_key:
     os.environ["GROQ_API_KEY"] = settings.groq_api_key
 if settings.openai_api_key:
     os.environ["OPENAI_API_KEY"] = settings.openai_api_key
-if settings.huggingface_api_key:
-    os.environ["HUGGINGFACE_API_KEY"] = settings.huggingface_api_key
 if settings.supabase_url:
     os.environ["SUPABASE_URL"] = settings.supabase_url
 if settings.supabase_anon_key:

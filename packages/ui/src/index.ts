@@ -50,5 +50,7 @@ export type { Column, DataTableProps } from "./components/data-table.js";
 export { FileUpload } from "./components/file-upload.js";
 export type { FileUploadProps } from "./components/file-upload.js";
 
+export { Skeleton } from "./components/skeleton.js";
+
 // Utilities
 export { cn } from "./lib/utils.js";

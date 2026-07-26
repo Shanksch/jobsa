@@ -67,7 +67,7 @@ CREATE OR REPLACE FUNCTION match_resume_chunks(
 RETURNS TABLE (
     id UUID,
     source TEXT,
-    source_id TEXT,
+    source_id UUID,
     chunk_text TEXT,
     similarity FLOAT
 )

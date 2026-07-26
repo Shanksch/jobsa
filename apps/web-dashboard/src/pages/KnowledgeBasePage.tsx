@@ -27,6 +27,7 @@ import {
   Input,
   Textarea,
   Select,
+  Skeleton,
 } from "@jobsa/ui";
 import {
   educationSchema,
@@ -318,13 +319,21 @@ export function KnowledgeBasePage() {
         {/* Education Content */}
         <TabsContent value="education">
           {edLoading ? (
-            <div className="text-center py-12 text-sm text-muted-foreground">Loading education...</div>
+            <div className="space-y-4">
+              {[1, 2].map((i) => (
+                <Card key={i} className="p-4 space-y-3">
+                  <Skeleton className="h-5 w-1/3" />
+                  <Skeleton className="h-4 w-1/4" />
+                  <Skeleton className="h-12 w-full mt-2" />
+                </Card>
+              ))}
+            </div>
           ) : !education || education.length === 0 ? (
             <p className="text-sm text-muted-foreground py-8 text-center italic">No education records found.</p>
           ) : (
             <div className="space-y-4">
-              {education.map((ed) => (
-                <Card key={ed.id}>
+              {education.map((ed, i) => (
+                <Card key={ed.id} className="animate-slide-up" style={{ animationDelay: `${i * 100}ms` }}>
                   <CardHeader className="pb-3 flex flex-row items-start justify-between">
                     <div>
                       <CardTitle className="text-sm font-semibold">{ed.degree} in {ed.field_of_study || "N/A"}</CardTitle>
@@ -350,13 +359,21 @@ export function KnowledgeBasePage() {
         {/* Experience Content */}
         <TabsContent value="experience">
           {exLoading ? (
-            <div className="text-center py-12 text-sm text-muted-foreground">Loading experience...</div>
+            <div className="space-y-4">
+              {[1, 2].map((i) => (
+                <Card key={i} className="p-4 space-y-3">
+                  <Skeleton className="h-5 w-1/3" />
+                  <Skeleton className="h-4 w-1/4" />
+                  <Skeleton className="h-16 w-full mt-2" />
+                </Card>
+              ))}
+            </div>
           ) : !experience || experience.length === 0 ? (
             <p className="text-sm text-muted-foreground py-8 text-center italic">No experience records found.</p>
           ) : (
             <div className="space-y-4">
-              {experience.map((ex) => (
-                <Card key={ex.id}>
+              {experience.map((ex, i) => (
+                <Card key={ex.id} className="animate-slide-up" style={{ animationDelay: `${i * 100}ms` }}>
                   <CardHeader className="pb-3 flex flex-row items-start justify-between">
                     <div>
                       <CardTitle className="text-sm font-semibold">{ex.title}</CardTitle>
@@ -400,13 +417,20 @@ export function KnowledgeBasePage() {
         {/* Projects Content */}
         <TabsContent value="projects">
           {prLoading ? (
-            <div className="text-center py-12 text-sm text-muted-foreground">Loading projects...</div>
+            <div className="space-y-4">
+              {[1, 2].map((i) => (
+                <Card key={i} className="p-4 space-y-3">
+                  <Skeleton className="h-5 w-1/4" />
+                  <Skeleton className="h-12 w-full mt-2" />
+                </Card>
+              ))}
+            </div>
           ) : !projects || projects.length === 0 ? (
             <p className="text-sm text-muted-foreground py-8 text-center italic">No project records found.</p>
           ) : (
             <div className="space-y-4">
-              {projects.map((pr) => (
-                <Card key={pr.id}>
+              {projects.map((pr, i) => (
+                <Card key={pr.id} className="animate-slide-up" style={{ animationDelay: `${i * 100}ms` }}>
                   <CardHeader className="pb-3 flex flex-row items-start justify-between">
                     <div>
                       <CardTitle className="text-sm font-semibold">{pr.name}</CardTitle>
@@ -448,15 +472,26 @@ export function KnowledgeBasePage() {
         {/* Skills Content */}
         <TabsContent value="skills">
           {skLoading ? (
-            <div className="text-center py-12 text-sm text-muted-foreground">Loading skills...</div>
+            <Card>
+              <CardContent className="p-6">
+                <div className="grid gap-4 sm:grid-cols-2">
+                  {[1, 2, 3, 4].map((i) => (
+                    <div key={i} className="flex flex-col gap-2 border border-border bg-card p-3 rounded-lg">
+                      <Skeleton className="h-4 w-1/3" />
+                      <Skeleton className="h-3 w-1/2" />
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
           ) : !skills || skills.length === 0 ? (
             <p className="text-sm text-muted-foreground py-8 text-center italic">No skill records found.</p>
           ) : (
             <Card>
               <CardContent className="p-6">
                 <div className="grid gap-4 sm:grid-cols-2">
-                  {skills.map((sk) => (
-                    <div key={sk.id} className="flex items-center justify-between border border-border bg-card p-3 rounded-lg">
+                  {skills.map((sk, i) => (
+                    <div key={sk.id} className="flex items-center justify-between border border-border bg-card p-3 rounded-lg animate-slide-up" style={{ animationDelay: `${i * 50}ms` }}>
                       <div>
                         <p className="text-sm font-semibold text-foreground">{sk.skill?.name || "Unknown Skill"}</p>
                         <p className="text-[10px] text-muted-foreground font-medium uppercase mt-0.5">
@@ -484,13 +519,21 @@ export function KnowledgeBasePage() {
         {/* Certifications Content */}
         <TabsContent value="certifications">
           {certLoading ? (
-            <div className="text-center py-12 text-sm text-muted-foreground">Loading certifications...</div>
+            <div className="space-y-4">
+              {[1, 2].map((i) => (
+                <Card key={i} className="p-4 space-y-3">
+                  <Skeleton className="h-5 w-1/3" />
+                  <Skeleton className="h-4 w-1/4" />
+                  <Skeleton className="h-8 w-1/2 mt-2" />
+                </Card>
+              ))}
+            </div>
           ) : !certifications || certifications.length === 0 ? (
             <p className="text-sm text-muted-foreground py-8 text-center italic">No certifications found.</p>
           ) : (
             <div className="space-y-4">
-              {certifications.map((cert) => (
-                <Card key={cert.id}>
+              {certifications.map((cert, i) => (
+                <Card key={cert.id} className="animate-slide-up" style={{ animationDelay: `${i * 100}ms` }}>
                   <CardHeader className="pb-3 flex flex-row items-start justify-between">
                     <div>
                       <CardTitle className="text-sm font-semibold">{cert.name}</CardTitle>

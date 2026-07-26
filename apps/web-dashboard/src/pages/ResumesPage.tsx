@@ -14,6 +14,7 @@ import {
   Badge,
   FileUpload,
   Input,
+  Skeleton,
 } from "@jobsa/ui";
 import { api } from "../lib/api.js";
 
@@ -156,9 +157,22 @@ export function ResumesPage() {
         {/* Resumes List */}
         <div className="md:col-span-2 space-y-4">
           {isLoading ? (
-            <div className="text-center py-12 text-sm text-muted-foreground">Loading resumes...</div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              {[1, 2, 3, 4].map((i) => (
+                <Card key={i} className="flex flex-col justify-between overflow-hidden h-32 p-4">
+                  <div className="space-y-3">
+                    <Skeleton className="h-4 w-3/4" />
+                    <Skeleton className="h-3 w-1/2" />
+                  </div>
+                  <div className="mt-4 flex justify-between">
+                    <Skeleton className="h-8 w-16" />
+                    <Skeleton className="h-8 w-8" />
+                  </div>
+                </Card>
+              ))}
+            </div>
           ) : !resumes || resumes.length === 0 ? (
-            <Card className="flex flex-col items-center justify-center p-12 border-dashed border-2 text-center h-[280px]">
+            <Card className="flex flex-col items-center justify-center p-12 text-center h-[280px]">
               <FileText className="size-12 text-muted-foreground mb-4 opacity-40" />
               <h3 className="font-semibold text-lg">No resumes uploaded yet</h3>
               <p className="text-sm text-muted-foreground mt-1 max-w-sm">
@@ -167,8 +181,8 @@ export function ResumesPage() {
             </Card>
           ) : (
             <div className="grid gap-4 sm:grid-cols-2">
-              {resumes.map((resume) => (
-                <Card key={resume.id} className="relative flex flex-col justify-between overflow-hidden">
+              {resumes.map((resume, i) => (
+                <Card key={resume.id} className="relative flex flex-col justify-between overflow-hidden animate-slide-up" style={{ animationDelay: `${i * 100}ms` }}>
                   {resume.is_primary && (
                     <div className="absolute top-0 right-0 bg-primary text-primary-foreground text-[10px] font-semibold px-2 py-0.5 rounded-bl">
                       Primary

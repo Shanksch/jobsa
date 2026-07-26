@@ -39,14 +39,29 @@ export const languageEntrySchema = z.object({
   proficiency: z.string().default("Professional"),
 });
 
+// Lenient URL: accepts empty/null (coercing to null), auto-prepends https:// if missing.
+const optionalUrl = z
+  .string()
+  .nullable()
+  .optional()
+  .transform((v) => {
+    if (!v || v.trim() === "") return null;
+    let url = v.trim();
+    if (url && !url.startsWith("http://") && !url.startsWith("https://")) {
+      url = `https://${url}`;
+    }
+    return url;
+  })
+  .pipe(z.string().url("Invalid URL").nullable());
+
 export const profileSchema = z.object({
   email: z.string().email("Invalid email address"),
   full_name: z.string().min(1, "Full name is required").max(200),
   phone: z.string().max(30).nullable().optional(),
   location: z.string().max(200).nullable().optional(),
-  linkedin_url: z.string().url("Invalid URL").or(z.literal("")).nullable().optional(),
-  github_url: z.string().url("Invalid URL").or(z.literal("")).nullable().optional(),
-  portfolio_url: z.string().url("Invalid URL").or(z.literal("")).nullable().optional(),
+  linkedin_url: optionalUrl,
+  github_url: optionalUrl,
+  portfolio_url: optionalUrl,
   summary: z.string().nullable().optional(),
   salary_expectation: z.string().max(100).nullable().optional(),
   notice_period: z.string().max(50).nullable().optional(),
