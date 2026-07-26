@@ -9,7 +9,6 @@ import {
   FolderCode,
   Wrench,
   Award,
-  BookOpen,
   Plus,
   Trash2,
 } from "lucide-react";
@@ -33,11 +32,8 @@ import {
   educationSchema,
   workExperienceSchema,
   projectSchema,
-  skillSchema,
   userSkillSchema,
   certificationSchema,
-  achievementSchema,
-  publicationSchema,
 } from "@jobsa/shared/schemas";
 import { api } from "../lib/api.js";
 
@@ -82,7 +78,7 @@ export function KnowledgeBasePage() {
         skills: api.knowledge.skills.create,
         certifications: api.knowledge.certifications.create,
       };
-      return endpoints[type](data);
+      return (endpoints as any)[type](data);
     },
     onSuccess: () => {
       toast.success("Entry added successfully.");
@@ -103,7 +99,7 @@ export function KnowledgeBasePage() {
         skills: api.knowledge.skills.delete,
         certifications: api.knowledge.certifications.delete,
       };
-      return endpoints[type](id);
+      return (endpoints as any)[type](id);
     },
     onSuccess: () => {
       toast.success("Entry deleted.");
@@ -257,7 +253,7 @@ export function KnowledgeBasePage() {
                 {activeTab === "skills" && (
                   <div className="space-y-4">
                     <div className="grid gap-4 md:grid-cols-2">
-                      <Input label="Skill Name" error={errors.skill?.name?.message} {...register("skill.name")} />
+                      <Input label="Skill Name" error={(errors as any).skill?.name?.message} {...register("skill.name")} />
                       <Select
                         label="Category"
                         options={[

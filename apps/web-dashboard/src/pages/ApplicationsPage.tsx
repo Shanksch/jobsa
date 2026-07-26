@@ -1,18 +1,14 @@
 import * as React from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Search, Eye, Trash2, SlidersHorizontal, FileEdit } from "lucide-react";
+import { Search, Trash2 } from "lucide-react";
 import {
   Card,
   CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
   DataTable,
   Column,
   Button,
   Badge,
-  Input,
   Select,
   Dialog,
   DialogContent,

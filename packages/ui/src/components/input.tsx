@@ -4,7 +4,7 @@ import { cn } from "../lib/utils.js";
 
 export interface InputProps
   extends React.InputHTMLAttributes<HTMLInputElement> {
-  error?: string;
+  error?: string | React.ReactNode | any;
   label?: string;
 }
 
@@ -27,7 +27,13 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
           ref={ref}
           {...props}
         />
-        {error && <span className="text-xs text-destructive">{error}</span>}
+        {error && (
+          <span className="text-xs text-destructive">
+            {typeof error === "string" || React.isValidElement(error)
+              ? error
+              : String(error?.message || error || "")}
+          </span>
+        )}
       </div>
     );
   }

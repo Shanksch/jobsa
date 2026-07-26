@@ -194,7 +194,7 @@ export const api = {
   },
 
   applications: {
-    list: async (params?: { status?: string; search?: string }) => {
+    list: async (params?: { status?: string; search?: string; limit?: number }) => {
       const userId = await getCurrentUserId();
       let query = supabase.from("applications").select("*").eq("profile_id", userId).order("updated_at", { ascending: false });
       
@@ -203,6 +203,9 @@ export const api = {
       }
       if (params?.search) {
         query = query.ilike("company_name", `%${params.search}%`);
+      }
+      if (params?.limit) {
+        query = query.limit(params.limit);
       }
       
       const { data, error } = await query;
@@ -231,26 +234,38 @@ export const api = {
     },
     stats: async () => {
       const userId = await getCurrentUserId();
-      const { data, error } = await supabase.from("applications").select("status").eq("profile_id", userId);
+      const { data, error } = await supabase.from("applications").select("status, created_at").eq("profile_id", userId);
       if (error) throw error;
       
-      const stats = {
-        total: data.length,
-        bookmarked: 0,
-        applying: 0,
+      const by_status: Record<string, number> = {
+        draft: 0,
         applied: 0,
-        interviewing: 0,
+        interview: 0,
+        rejected: 0,
         offer: 0,
-        rejected: 0
       };
       
+      let this_week = 0;
+      const oneWeekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
       for (const app of data) {
-        const status = app.status as keyof Omit<ApplicationStats, 'total'>;
-        if (stats[status] !== undefined) {
-          stats[status]++;
+        const st = app.status as string;
+        by_status[st] = (by_status[st] ?? 0) + 1;
+        if (app.created_at && new Date(app.created_at) > oneWeekAgo) {
+          this_week++;
         }
       }
-      return stats as ApplicationStats;
+
+      const total = data.length;
+      const interviews = by_status["interview"] ?? 0;
+      const interview_rate = total > 0 ? Math.round((interviews / total) * 1000) / 10 : 0;
+      
+      return {
+        total,
+        by_status,
+        this_week,
+        interview_rate,
+      } as ApplicationStats;
     },
   },
 };

@@ -25,7 +25,7 @@ export function ProfilePage() {
     queryFn: api.profile.get,
   });
 
-  const { register, control, handleSubmit, reset, formState: { errors, isDirty } } = useForm({
+  const { register, control, handleSubmit, formState: { errors } } = useForm({
     resolver: zodResolver(profileSchema),
     defaultValues: {
       email: "",
@@ -64,10 +64,6 @@ export function ProfilePage() {
     name: "languages",
   });
 
-  const { fields: locationFields, append: appendLocation, remove: removeLocation } = useFieldArray({
-    control,
-    name: "preferred_locations" as any, // Simple array array field
-  });
 
   const mutation = useMutation({
     mutationFn: api.profile.update,
@@ -234,14 +230,14 @@ export function ProfilePage() {
                       <div className="flex-1">
                         <Input
                           placeholder="e.g. Spanish"
-                          error={errors.languages?.[index]?.language?.message}
+                          error={(errors.languages as any)?.[index]?.language?.message}
                           {...register(`languages.${index}.language` as const)}
                         />
                       </div>
                       <div className="w-48">
                         <Input
                           placeholder="e.g. Native / Conversational"
-                          error={errors.languages?.[index]?.proficiency?.message}
+                          error={(errors.languages as any)?.[index]?.proficiency?.message}
                           {...register(`languages.${index}.proficiency` as const)}
                         />
                       </div>

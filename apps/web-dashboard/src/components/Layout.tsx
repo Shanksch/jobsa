@@ -1,5 +1,5 @@
 import * as React from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { Sidebar } from "./Sidebar.js";
 import { fetchHealth } from "../lib/api.js";
 import { useQuery } from "@tanstack/react-query";
@@ -11,7 +11,6 @@ interface LayoutProps {
 }
 
 export function Layout({ children }: LayoutProps) {
-  const location = useLocation();
   const navigate = useNavigate();
   const { data: health } = useQuery({
     queryKey: ["health"],

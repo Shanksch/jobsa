@@ -4,7 +4,7 @@ import { cn } from "../lib/utils.js";
 
 export interface TextareaProps
   extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
-  error?: string;
+  error?: string | React.ReactNode | any;
   label?: string;
 }
 
@@ -26,7 +26,13 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
           ref={ref}
           {...props}
         />
-        {error && <span className="text-xs text-destructive">{error}</span>}
+        {error && (
+          <span className="text-xs text-destructive">
+            {typeof error === "string" || React.isValidElement(error)
+              ? error
+              : String(error?.message || error || "")}
+          </span>
+        )}
       </div>
     );
   }

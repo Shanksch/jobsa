@@ -4,7 +4,7 @@ import { cn } from "../lib/utils.js";
 
 export interface SelectProps
   extends React.SelectHTMLAttributes<HTMLSelectElement> {
-  error?: string;
+  error?: string | React.ReactNode | any;
   label?: string;
   options: { label: string; value: string | number }[];
 }
@@ -50,7 +50,13 @@ const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
             </svg>
           </div>
         </div>
-        {error && <span className="text-xs text-destructive">{error}</span>}
+        {error && (
+          <span className="text-xs text-destructive">
+            {typeof error === "string" || React.isValidElement(error)
+              ? error
+              : String(error?.message || error || "")}
+          </span>
+        )}
       </div>
     );
   }

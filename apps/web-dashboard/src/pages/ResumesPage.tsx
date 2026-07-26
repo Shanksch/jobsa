@@ -1,7 +1,7 @@
 import * as React from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
-import { FileText, Trash2, CheckCircle2, Star, Eye } from "lucide-react";
+import { FileText, Trash2, Star, Eye } from "lucide-react";
 import { toast } from "sonner";
 import {
   Card,
@@ -11,7 +11,6 @@ import {
   CardDescription,
   CardFooter,
   Button,
-  Badge,
   FileUpload,
   Input,
   Skeleton,
@@ -20,7 +19,6 @@ import { api } from "../lib/api.js";
 
 export function ResumesPage() {
   const queryClient = useQueryClient();
-  const [uploadModalOpen, setUploadModalOpen] = React.useState(false);
   const [pendingFile, setPendingFile] = React.useState<File | null>(null);
   const [resumeName, setResumeName] = React.useState("");
   const [isPrimary, setIsPrimary] = React.useState(false);
@@ -38,7 +36,6 @@ export function ResumesPage() {
       queryClient.invalidateQueries({ queryKey: ["resumes"] });
       queryClient.invalidateQueries({ queryKey: ["profile"] });
       queryClient.invalidateQueries({ queryKey: ["knowledge"] });
-      setUploadModalOpen(false);
       setPendingFile(null);
       setResumeName("");
       setIsPrimary(false);
@@ -75,7 +72,6 @@ export function ResumesPage() {
     // Auto-generate name based on file name minus extension
     const cleanName = file.name.split(".").slice(0, -1).join(" ");
     setResumeName(cleanName || "My Resume");
-    setUploadModalOpen(true);
   };
 
   const handleUploadSubmit = () => {

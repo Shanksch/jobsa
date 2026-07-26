@@ -8,7 +8,7 @@ export interface FileUploadProps {
   accept?: string;
   maxSizeMB?: number;
   isLoading?: boolean;
-  error?: string | null;
+  error?: string | React.ReactNode | any | null;
   className?: string;
 }
 
@@ -167,7 +167,12 @@ export function FileUpload({
       {(validationError || error) && (
         <div className="flex items-center gap-2 mt-2 text-destructive">
           <AlertCircle className="size-4" />
-          <span className="text-xs font-medium">{validationError || error}</span>
+          <span className="text-xs font-medium">
+            {validationError ||
+              (typeof error === "string" || React.isValidElement(error)
+                ? error
+                : String(error?.message || error || ""))}
+          </span>
         </div>
       )}
     </div>
