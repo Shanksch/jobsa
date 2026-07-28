@@ -24,6 +24,7 @@ interface ResumeItem {
 function extractFormSchema(): FormField[] {
   const fields: FormField[] = [];
   const elements = document.querySelectorAll('input, select, textarea');
+  const radioGroups = new Set<string>();
 
   elements.forEach((el) => {
     const element = el as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
@@ -33,9 +34,31 @@ function extractFormSchema(): FormField[] {
       element.type === 'submit' ||
       element.type === 'button' ||
       element.disabled ||
-      ('readOnly' in element && element.readOnly)
+      ('readOnly' in element && element.readOnly) ||
+      element.offsetParent === null ||
+      element.style.display === 'none' ||
+      element.style.visibility === 'hidden' ||
+      element.style.opacity === '0'
     ) {
       return;
+    }
+
+    const rect = element.getBoundingClientRect();
+    if (rect.width === 0 || rect.height === 0) {
+      return;
+    }
+
+    // Ignore functional UI inputs (like Select2 search boxes) that have no name and no id.
+    // Real form fields being submitted to an ATS will always have a name or id.
+    if (!element.name && !element.id) {
+      return;
+    }
+
+    if (element.type === 'radio') {
+      if (element.name) {
+        if (radioGroups.has(element.name)) return;
+        radioGroups.add(element.name);
+      }
     }
 
     let label = '';
@@ -57,6 +80,17 @@ function extractFormSchema(): FormField[] {
     if (!label && 'placeholder' in element && element.placeholder) {
       label = element.placeholder;
     }
+    
+    // For radio groups, try to find the group label
+    if (!label && element.type === 'radio' && element.name) {
+       // Look for a fieldset or surrounding div with a label
+       const fieldset = element.closest('fieldset');
+       if (fieldset) {
+         const legend = fieldset.querySelector('legend');
+         if (legend) label = legend.innerText.trim();
+       }
+    }
+
     if (!label) {
       label = element.name || id || 'Unknown Field';
     }
@@ -74,6 +108,14 @@ function extractFormSchema(): FormField[] {
     if (element.tagName.toLowerCase() === 'select') {
       const selectEl = element as HTMLSelectElement;
       field.options = Array.from(selectEl.options).map(o => o.text.trim()).filter(t => t.length > 0);
+    } else if (element.type === 'radio' && element.name) {
+      // Gather all radio options for this group
+      const radios = document.querySelectorAll(`input[type="radio"][name="${CSS.escape(element.name)}"]`);
+      field.options = Array.from(radios).map(r => {
+        const radio = r as HTMLInputElement;
+        const radioLabel = radio.id ? document.querySelector(`label[for="${CSS.escape(radio.id)}"]`) : null;
+        return (radioLabel as HTMLLabelElement)?.innerText?.trim() || radio.value || 'Option';
+      });
     }
 
     fields.push(field);
@@ -127,6 +169,7 @@ function injectUI() {
     userSelect: 'none',
     letterSpacing: '0.01em',
     whiteSpace: 'nowrap',
+    border: '1px solid #27272a'
   });
   pill.textContent = '✨ JobSA';
   host.appendChild(pill);
@@ -137,12 +180,13 @@ function injectUI() {
     display: 'none',
     width: '340px',
     maxHeight: '480px',
-    background: '#0f172a',
-    color: '#f8fafc',
+    background: '#09090b',
+    color: '#fafafa',
     borderRadius: '12px',
     boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
     overflow: 'hidden',
     marginBottom: '8px',
+    border: '1px solid #27272a'
   });
 
   // Header
@@ -152,7 +196,7 @@ function injectUI() {
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: '12px 16px',
-    borderBottom: '1px solid #1e293b',
+    borderBottom: '1px solid #27272a',
     cursor: 'move',
   });
   const headerTitle = document.createElement('strong');
@@ -160,7 +204,7 @@ function injectUI() {
   headerTitle.textContent = '✨ JobSA';
   const closeBtn = document.createElement('button');
   Object.assign(closeBtn.style, {
-    background: 'none', border: 'none', color: '#94a3b8',
+    background: 'none', border: 'none', color: '#a1a1aa',
     cursor: 'pointer', fontSize: '20px', lineHeight: '1',
     padding: '0', display: 'flex', alignItems: 'center',
   });
@@ -198,7 +242,7 @@ function injectUI() {
   const statusRow = document.createElement('div');
   Object.assign(statusRow.style, {
     display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-    fontSize: '12px', color: '#94a3b8', marginBottom: '10px',
+    fontSize: '12px', color: '#a1a1aa', marginBottom: '10px',
   });
   const statusDot = document.createElement('span');
   Object.assign(statusDot.style, {
@@ -219,8 +263,8 @@ function injectUI() {
   // Resume selector
   const resumeSelect = document.createElement('select');
   Object.assign(resumeSelect.style, {
-    width: '100%', padding: '8px 10px', background: '#1e293b',
-    border: '1px solid #334155', color: '#f8fafc', borderRadius: '6px',
+    width: '100%', padding: '8px 10px', background: '#09090b',
+    border: '1px solid #27272a', color: '#fafafa', borderRadius: '6px',
     fontSize: '13px', marginBottom: '10px', boxSizing: 'border-box', outline: 'none',
     cursor: 'pointer',
   });
@@ -228,10 +272,10 @@ function injectUI() {
   body.appendChild(resumeSelect);
 
   // Helper: make a button
-  function makeBtn(text: string, bg = '#6366f1'): HTMLButtonElement {
+  function makeBtn(text: string, bg = '#00e599'): HTMLButtonElement {
     const btn = document.createElement('button');
     Object.assign(btn.style, {
-      width: '100%', padding: '9px 12px', background: bg, color: '#fff',
+      width: '100%', padding: '9px 12px', background: bg, color: bg === '#00e599' ? '#09090b' : '#fafafa',
       border: 'none', borderRadius: '8px', cursor: 'pointer',
       fontWeight: '600', fontSize: '13px', marginBottom: '8px',
       boxSizing: 'border-box', display: 'block', textAlign: 'center',
@@ -250,7 +294,7 @@ function injectUI() {
 
   const progressText = document.createElement('div');
   Object.assign(progressText.style, {
-    fontSize: '12px', color: '#94a3b8', textAlign: 'center',
+    fontSize: '12px', color: '#a1a1aa', textAlign: 'center',
     padding: '4px 0 8px', display: 'none',
   });
   body.appendChild(progressText);
@@ -359,19 +403,19 @@ function injectUI() {
       const filledCount = fillResults.filter(r => r.filled).length;
 
       const summary = document.createElement('div');
-      summary.style.cssText = 'font-size:12px;margin-bottom:8px;color:#94a3b8;';
-      summary.innerHTML = `<strong style="color:#f8fafc">Filled ${filledCount}/${fillResults.length}</strong> fields`;
+      summary.style.cssText = 'font-size:12px;margin-bottom:8px;color:#a1a1aa;';
+      summary.innerHTML = `<strong style="color:#fafafa">Filled ${filledCount}/${fillResults.length}</strong> fields`;
       resultsContainer.appendChild(summary);
 
       fillResults.forEach(r => {
         const row = document.createElement('div');
-        row.style.cssText = 'display:flex;align-items:center;gap:6px;padding:5px 6px;font-size:12px;border-radius:4px;cursor:pointer;color:#cbd5e1;';
-        row.onmouseover = () => { row.style.background = '#1e293b'; };
+        row.style.cssText = 'display:flex;align-items:center;gap:6px;padding:5px 6px;font-size:12px;border-radius:4px;cursor:pointer;color:#fafafa;';
+        row.onmouseover = () => { row.style.background = '#27272a'; };
         row.onmouseout  = () => { row.style.background = 'transparent'; };
 
         const icon = document.createElement('span');
         icon.textContent = r.filled ? '✓' : '⚠';
-        icon.style.cssText = `color:${r.filled ? '#10b981' : '#f59e0b'};flex-shrink:0;font-weight:bold;`;
+        icon.style.cssText = `color:${r.filled ? '#00e599' : '#f59e0b'};flex-shrink:0;font-weight:bold;`;
 
         const lbl = document.createElement('span');
         lbl.style.cssText = 'overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:260px;';
