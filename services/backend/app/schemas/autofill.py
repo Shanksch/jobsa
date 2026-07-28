@@ -21,6 +21,8 @@ class FormField(BaseModel):
 class FormSchema(BaseModel):
     url: str
     fields: List[FormField]
+    resume_id: Optional[str] = None
+    context: Optional[str] = None
 
 
 class AutofillResponse(BaseModel):

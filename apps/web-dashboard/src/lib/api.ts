@@ -19,6 +19,56 @@ import { supabase } from "./supabase.js";
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || (import.meta.env.PROD ? "https://jobsa-backend.onrender.com" : "http://localhost:8000");
 
+export class BackendWakingUpError extends Error {
+  constructor(attempt: number, maxAttempts: number) {
+    super(`Backend is waking up… (attempt ${attempt}/${maxAttempts})`);
+    this.name = 'BackendWakingUpError';
+  }
+}
+
+function isRetriableError(error: unknown): boolean {
+  // Network failure (backend is down / cold starting)
+  if (error instanceof TypeError && error.message === 'Failed to fetch') return true;
+  return false;
+}
+
+function isRetriableStatus(status: number): boolean {
+  // 502 Bad Gateway, 503 Service Unavailable, 504 Gateway Timeout
+  // These are returned by Render when the backend is still spinning up
+  return status === 502 || status === 503 || status === 504;
+}
+
+const MAX_RETRIES = 4;
+const BASE_DELAY_MS = 2000; // 2s, 4s, 8s, 16s
+
+async function fetchWithRetry(url: string, options: RequestInit): Promise<Response> {
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      const response = await fetch(url, options);
+      if (isRetriableStatus(response.status) && attempt < MAX_RETRIES) {
+        const delay = BASE_DELAY_MS * Math.pow(2, attempt - 1);
+        console.warn(`[JobSA] Backend returned ${response.status}, retrying in ${delay}ms (attempt ${attempt}/${MAX_RETRIES})`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        continue;
+      }
+      return response;
+    } catch (error) {
+      if (isRetriableError(error) && attempt < MAX_RETRIES) {
+        const delay = BASE_DELAY_MS * Math.pow(2, attempt - 1);
+        console.warn(`[JobSA] Backend unreachable, retrying in ${delay}ms (attempt ${attempt}/${MAX_RETRIES})`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        continue;
+      }
+      if (isRetriableError(error)) {
+        // All retries exhausted — throw a user-friendly error instead of "Failed to fetch"
+        throw new BackendWakingUpError(attempt, MAX_RETRIES);
+      }
+      throw error; // Non-retriable error, throw immediately
+    }
+  }
+  throw new BackendWakingUpError(MAX_RETRIES, MAX_RETRIES);
+}
+
 async function request<T>(
   path: string,
   options: RequestInit = {}
@@ -35,7 +85,7 @@ async function request<T>(
     headers.set("Authorization", `Bearer ${session.access_token}`);
   }
 
-  const response = await fetch(`${BACKEND_URL}${path}`, {
+  const response = await fetchWithRetry(`${BACKEND_URL}${path}`, {
     ...options,
     headers,
   });

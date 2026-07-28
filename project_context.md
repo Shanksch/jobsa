@@ -208,7 +208,7 @@ All backend routes require `Authorization: Bearer <supabase_jwt>` (enforced by `
 | `DELETE` | `/api/resumes/:id` | Delete resume |
 | `GET` | `/api/resumes/:id/download` | Download resume file |
 | `POST` | `/api/resumes/:id/import` | Parse resume → import to knowledge base |
-| `POST` | `/api/autofill` | RAG-based answer generation for job application fields |
+| `POST` | `/api/autofill` | RAG-based answer generation (accepts optional `resume_id` and `context`) |
 
 ### Direct Supabase Access (Frontend JS Client)
 The frontend bypasses the backend for these, using the Supabase JS client with RLS:
@@ -253,12 +253,12 @@ Uses Pydantic Settings, loaded from `.env` files. Key settings:
 ## 9. Chrome Extension Details
 - **Manifest Version:** 3
 - **Permissions:** `storage`, `activeTab`
-- **Host Permissions:** `http://localhost:8000/*` (needs updating for production)
+- **Host Permissions:** `http://localhost:8000/*`, `https://jobsa-backend.onrender.com/*`, `https://xhnzyznqeojaqqzutdfp.supabase.co/*`
 - **Content Scripts:**
-  - `src/content/index.ts` → Runs on `<all_urls>` (form field detection)
-  - `src/content/auth-sync.ts` → Runs on `localhost:5173` (token sync with dashboard)
-- **Service Worker:** `src/background/service-worker.ts`
-- **Popup:** `src/popup/index.html`
+  - `src/content/index.ts` → Runs on `<all_urls>` (Injects Shadow DOM floating panel UI, handles tracking)
+  - `src/content/auth-sync.ts` → Runs on `localhost:5173` and `jobsa-web-dashboard.vercel.app` (token sync with dashboard)
+- **Service Worker:** `src/background/service-worker.ts` (Handles API requests with exponential backoff for Render cold starts, creates/updates applications in Supabase via REST)
+- **Popup:** `src/popup/index.html` (Displays connection status and handles waking-up state)
 
 ## 10. How to Run Locally
 **Backend:**
@@ -300,8 +300,7 @@ Key deployment tasks:
 - Add Vercel dashboard URL to Supabase Auth redirect URLs.
 
 ## 12. Next Steps
-- Make `BACKEND_URL` configurable via env var for deployment.
-- Ensure all dashboard pages (Profile, Resumes, Knowledge Base, Applications) are wired to the TanStack Query API client and fully functional.
-- Implement the "Human Review Shell" and Application Tracking logic.
+- Implement the "Human Review Shell" in the dashboard.
 - End-to-end testing and polishing frontend integration with the backend REST endpoints.
-- Deploy to production (Vercel + Render + Chrome Web Store).
+- Provide a mechanism for users to update the 'context' field for autofill.
+- Full deployment (Vercel + Render + Chrome Web Store).

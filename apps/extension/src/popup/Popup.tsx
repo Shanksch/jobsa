@@ -2,9 +2,14 @@ import { useState, useEffect, useCallback } from "react";
 import { Button } from "@jobsa/ui";
 import type { HealthResponse } from "@jobsa/shared";
 
-const BACKEND_URL = "http://localhost:8000";
+const DEFAULT_BACKEND_URL = "http://localhost:8000";
 
-type ConnectionStatus = "checking" | "connected" | "disconnected";
+async function getBackendUrl(): Promise<string> {
+  const { backend_url } = await chrome.storage.local.get('backend_url');
+  return backend_url || DEFAULT_BACKEND_URL;
+}
+
+type ConnectionStatus = "checking" | "waking_up" | "connected" | "disconnected";
 
 export function Popup() {
   const [status, setStatus] = useState<ConnectionStatus>("checking");
@@ -15,25 +20,45 @@ export function Popup() {
     setStatus("checking");
     setError(null);
 
-    try {
-      const response = await fetch(`${BACKEND_URL}/api/health`, {
-        method: "GET",
-        headers: { Accept: "application/json" },
-        signal: AbortSignal.timeout(5000),
-      });
+    const BACKEND_URL = await getBackendUrl();
+    const MAX_RETRIES = 4;
+    const BASE_DELAY_MS = 2000;
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+      try {
+        const response = await fetch(`${BACKEND_URL}/api/health`, {
+          method: "GET",
+          headers: { Accept: "application/json" },
+          signal: AbortSignal.timeout(10000), // increase from 5s to 10s for cold starts
+        });
+
+        if (response.status === 502 || response.status === 503 || response.status === 504) {
+          if (attempt < MAX_RETRIES) {
+            setStatus("waking_up");
+            const delay = BASE_DELAY_MS * Math.pow(2, attempt - 1);
+            await new Promise(resolve => setTimeout(resolve, delay));
+            continue;
+          }
+        }
+
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+        const data: HealthResponse = await response.json();
+        setHealth(data);
+        setStatus("connected");
+        return;
+      } catch (err) {
+        if (err instanceof TypeError && err.message === "Failed to fetch" && attempt < MAX_RETRIES) {
+          setStatus("waking_up");
+          const delay = BASE_DELAY_MS * Math.pow(2, attempt - 1);
+          await new Promise(resolve => setTimeout(resolve, delay));
+          continue;
+        }
+        if (attempt >= MAX_RETRIES) {
+          setStatus("disconnected");
+          setError("Backend is still starting up. Please try again in a moment.");
+        }
       }
-
-      const data: HealthResponse = await response.json();
-      setHealth(data);
-      setStatus("connected");
-    } catch (err) {
-      setStatus("disconnected");
-      setError(
-        err instanceof Error ? err.message : "Failed to connect to backend"
-      );
     }
   }, []);
 
@@ -77,13 +102,15 @@ export function Popup() {
               className={`size-2.5 rounded-full transition-colors duration-300 ${
                 status === "connected"
                   ? "bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.5)]"
-                  : status === "checking"
+                  : status === "waking_up"
                     ? "bg-amber-400 animate-pulse"
-                    : "bg-red-500"
+                    : status === "checking"
+                      ? "bg-amber-400 animate-pulse"
+                      : "bg-red-500"
               }`}
             />
             <span className="text-xs text-muted-foreground capitalize">
-              {status}
+              {status === "waking_up" ? "waking up…" : status}
             </span>
           </div>
         </div>
@@ -123,7 +150,7 @@ export function Popup() {
         <Button
           size="sm"
           className="flex-1"
-          onClick={() => window.open("http://localhost:5173", "_blank")}
+          onClick={() => window.open("https://jobsa-web-dashboard.vercel.app", "_blank")}
         >
           Open Dashboard
         </Button>

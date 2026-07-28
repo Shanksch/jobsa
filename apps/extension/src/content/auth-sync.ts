@@ -15,7 +15,7 @@ window.addEventListener("message", (event) => {
     // Send to the extension's background service worker
     chrome.runtime.sendMessage(
       { action: "save_token", token },
-      (response) => {
+      () => {
         // Ignore errors if background script isn't ready
         if (chrome.runtime.lastError) {
           console.debug("[JobSA Auth Sync] Background script not ready or error:", chrome.runtime.lastError.message);

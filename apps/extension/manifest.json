@@ -30,7 +30,8 @@
     {
       "matches": [
         "http://localhost:5173/*",
-        "http://127.0.0.1:5173/*"
+        "http://127.0.0.1:5173/*",
+        "https://jobsa-web-dashboard.vercel.app/*"
       ],
       "js": ["src/content/auth-sync.ts"]
     }
@@ -40,6 +41,8 @@
     "activeTab"
   ],
   "host_permissions": [
-    "http://localhost:8000/*"
+    "http://localhost:8000/*",
+    "https://jobsa-backend.onrender.com/*",
+    "https://xhnzyznqeojaqqzutdfp.supabase.co/*"
   ]
 }
