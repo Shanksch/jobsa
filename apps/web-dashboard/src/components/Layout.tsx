@@ -6,7 +6,6 @@ import { useQuery } from "@tanstack/react-query";
 import { Toaster } from "@jobsa/ui";
 import { supabase } from "../lib/supabase.js";
 
-
 interface LayoutProps {
   children: React.ReactNode;
 }
