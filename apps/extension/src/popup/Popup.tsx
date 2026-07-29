@@ -48,15 +48,15 @@ export function Popup() {
         setStatus("connected");
         return;
       } catch (err) {
-        if (err instanceof TypeError && err.message === "Failed to fetch" && attempt < MAX_RETRIES) {
+        if (attempt < MAX_RETRIES) {
           setStatus("waking_up");
           const delay = BASE_DELAY_MS * Math.pow(2, attempt - 1);
           await new Promise(resolve => setTimeout(resolve, delay));
           continue;
-        }
-        if (attempt >= MAX_RETRIES) {
+        } else {
           setStatus("disconnected");
-          setError("Backend is still starting up. Please try again in a moment.");
+          const errMsg = err instanceof Error ? err.message : String(err);
+          setError(`Backend unreachable: ${errMsg}. Please try again in a moment.`);
         }
       }
     }

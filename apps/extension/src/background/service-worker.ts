@@ -101,19 +101,16 @@ async function fetchWithRetry(url: string, options: RequestInit): Promise<Respon
       }
       return response;
     } catch (error) {
-      if (error instanceof TypeError && error.message === 'Failed to fetch' && attempt < MAX_RETRIES) {
+      if (attempt < MAX_RETRIES) {
         const delay = BASE_DELAY_MS * Math.pow(2, attempt - 1);
         console.warn(`[JobSA] Backend unreachable, retrying in ${delay}ms (${attempt}/${MAX_RETRIES})`);
         await new Promise(resolve => setTimeout(resolve, delay));
         continue;
       }
-      if (error instanceof TypeError && error.message === 'Failed to fetch') {
-        throw new Error('Backend is still waking up. Please try again in a moment.');
-      }
-      throw error;
+      throw new Error('Backend is still waking up or unreachable. Please try again in a moment.');
     }
   }
-  throw new Error('Backend is still waking up. Please try again in a moment.');
+  throw new Error('Backend is still waking up or unreachable. Please try again in a moment.');
 }
 
 async function handleAutofill(payload: any) {

@@ -53,17 +53,14 @@ async function fetchWithRetry(url: string, options: RequestInit): Promise<Respon
       }
       return response;
     } catch (error) {
-      if (isRetriableError(error) && attempt < MAX_RETRIES) {
+      if (attempt < MAX_RETRIES) {
         const delay = BASE_DELAY_MS * Math.pow(2, attempt - 1);
         console.warn(`[JobSA] Backend unreachable, retrying in ${delay}ms (attempt ${attempt}/${MAX_RETRIES})`);
         await new Promise(resolve => setTimeout(resolve, delay));
         continue;
       }
-      if (isRetriableError(error)) {
-        // All retries exhausted — throw a user-friendly error instead of "Failed to fetch"
-        throw new BackendWakingUpError(attempt, MAX_RETRIES);
-      }
-      throw error; // Non-retriable error, throw immediately
+      // All retries exhausted — throw a user-friendly error
+      throw new BackendWakingUpError(attempt, MAX_RETRIES);
     }
   }
   throw new BackendWakingUpError(MAX_RETRIES, MAX_RETRIES);
