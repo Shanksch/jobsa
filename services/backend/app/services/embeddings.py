@@ -18,7 +18,7 @@ _executor = ThreadPoolExecutor(max_workers=2)
 def _get_model():
     global _embedding_model
     if _embedding_model is None:
-        _embedding_model = TextEmbedding(model_name=EMBEDDING_MODEL)
+        _embedding_model = TextEmbedding(model_name=EMBEDDING_MODEL, threads=1)
     return _embedding_model
 
 def _embed_sync(texts: list[str]) -> list[list[float]]:
