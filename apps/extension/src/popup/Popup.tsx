@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Button } from "@jobsa/ui";
 import type { HealthResponse } from "@jobsa/shared";
 
-const DEFAULT_BACKEND_URL = "http://localhost:8000";
+const DEFAULT_BACKEND_URL = "https://jobsa-backend.onrender.com";
 
 async function getBackendUrl(): Promise<string> {
   const { backend_url } = await chrome.storage.local.get('backend_url');

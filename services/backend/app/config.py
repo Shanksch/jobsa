@@ -40,7 +40,7 @@ class Settings(BaseSettings):
         return bool(self.supabase_url and self.supabase_anon_key)
 
     # ─── CORS ──────────────────────────────────────────────
-    cors_origins: str = "http://localhost:5173,http://localhost:5174,chrome-extension://"
+    cors_origins: str = "https://jobsa-web-dashboard.vercel.app,chrome-extension://"
 
     @property
     def cors_origin_list(self) -> list[str]:

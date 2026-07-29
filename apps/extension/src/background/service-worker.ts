@@ -83,7 +83,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 
 async function getBackendUrl(): Promise<string> {
   const { backend_url } = await chrome.storage.local.get('backend_url');
-  return backend_url || 'http://localhost:8000';
+  return backend_url || 'https://jobsa-backend.onrender.com';
 }
 
 const MAX_RETRIES = 4;

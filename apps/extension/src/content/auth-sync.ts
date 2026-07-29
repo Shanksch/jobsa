@@ -1,7 +1,7 @@
 /**
  * JobSA Auth Sync Content Script
  * 
- * Runs on the web dashboard (localhost:5173 / production domain) to seamlessly
+ * Runs on the web dashboard (https://jobsa-web-dashboard.vercel.app) to seamlessly
  * capture the user's Supabase JWT token and pass it to the extension's background script.
  */
 
