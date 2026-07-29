@@ -54,5 +54,5 @@ def setup_logging(log_level: str = "DEBUG") -> None:
     root_logger.setLevel(getattr(logging, log_level.upper(), logging.DEBUG))
 
     # Quiet noisy loggers
-    for noisy in ("uvicorn.access", "httpx", "httpcore"):
+    for noisy in ("uvicorn.access", "httpx", "httpcore", "hpack"):
         logging.getLogger(noisy).setLevel(logging.WARNING)
