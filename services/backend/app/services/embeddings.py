@@ -8,8 +8,8 @@ from fastembed import TextEmbedding
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
 
-EMBEDDING_MODEL = "nomic-ai/nomic-embed-text-v1.5"
-EMBEDDING_DIM = 768
+EMBEDDING_MODEL = "BAAI/bge-small-en-v1.5"
+EMBEDDING_DIM = 384
 
 # Initialize globally so model is loaded once
 _embedding_model = None

@@ -18,6 +18,9 @@ migration_sql = """
 -- Enable the pgvector extension to work with embedding vectors
 CREATE EXTENSION IF NOT EXISTS vector;
 
+-- Drop existing table if we are migrating dimensions
+DROP TABLE IF EXISTS resume_chunks CASCADE;
+
 -- Create the resume_chunks table
 CREATE TABLE IF NOT EXISTS resume_chunks (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -26,7 +29,7 @@ CREATE TABLE IF NOT EXISTS resume_chunks (
     source TEXT NOT NULL,
     source_id TEXT,
     chunk_text TEXT NOT NULL,
-    embedding VECTOR(768),
+    embedding VECTOR(384),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
@@ -60,7 +63,7 @@ DROP FUNCTION IF EXISTS match_resume_chunks(VECTOR, UUID, INT);
 DROP FUNCTION IF EXISTS match_resume_chunks;
 
 CREATE OR REPLACE FUNCTION match_resume_chunks(
-    query_embedding VECTOR(768),
+    query_embedding VECTOR(384),
     match_profile_id UUID,
     match_count INT DEFAULT 6
 )
