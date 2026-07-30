@@ -51,6 +51,7 @@ export { FileUpload } from "./components/file-upload.js";
 export type { FileUploadProps } from "./components/file-upload.js";
 
 export { Skeleton } from "./components/skeleton.js";
+export { Logo } from "./components/logo.js";
 
 // Utilities
 export { cn } from "./lib/utils.js";

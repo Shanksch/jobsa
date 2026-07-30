@@ -1,44 +1,75 @@
 """
 Embeddings client wrapper.
 
-Uses fastembed to generate vectors locally with nomic-ai/nomic-embed-text-v1.5 (768 dims).
+Uses Hugging Face's Free Inference API to offload embedding generation,
+since local models (fastembed/onnxruntime) require more RAM than the
+512MB limit available on the free Render tier.
 """
 
-from fastembed import TextEmbedding
 import asyncio
-from concurrent.futures import ThreadPoolExecutor
+import os
+import httpx
+from fastapi import HTTPException
 
-EMBEDDING_MODEL = "BAAI/bge-small-en-v1.5"
+EMBEDDING_API_URL = "https://api-inference.huggingface.co/pipeline/feature-extraction/sentence-transformers/all-MiniLM-L6-v2"
 EMBEDDING_DIM = 384
-
-# Initialize globally so model is loaded once
-_embedding_model = None
-_executor = ThreadPoolExecutor(max_workers=2)
-
-def _get_model():
-    global _embedding_model
-    if _embedding_model is None:
-        _embedding_model = TextEmbedding(model_name=EMBEDDING_MODEL, threads=1)
-    return _embedding_model
-
-def _embed_sync(texts: list[str]) -> list[list[float]]:
-    model = _get_model()
-    # model.embed returns a generator of numpy arrays
-    embeddings = list(model.embed(texts))
-    return [e.tolist() for e in embeddings]
 
 async def embed_texts(texts: list[str]) -> list[list[float]]:
     """
-    Embed a batch of strings. Returns one vector per input string, in
-    the same order as the input. Empty input returns an empty list.
+    Embed a batch of strings using the Hugging Face Free Inference API.
+    Returns one vector per input string.
     """
     if not texts:
         return []
         
-    loop = asyncio.get_running_loop()
-    return await loop.run_in_executor(_executor, _embed_sync, texts)
+    headers = {}
+    hf_token = os.environ.get("HUGGINGFACE_API_KEY")
+    if hf_token:
+        headers["Authorization"] = f"Bearer {hf_token}"
+        
+    async with httpx.AsyncClient() as client:
+        # Retry logic for cold starts (503) and connection errors
+        max_retries = 5
+        for attempt in range(max_retries):
+            try:
+                response = await client.post(
+                    EMBEDDING_API_URL, 
+                    headers=headers,
+                    json={"inputs": texts},
+                    timeout=30.0
+                )
+            except httpx.RequestError as exc:
+                print(f"Embedding API request error: {exc}")
+                if attempt < max_retries - 1:
+                    await asyncio.sleep(2.0)
+                    continue
+                return [] # Gracefully fail so autofill can continue with base profile
+            
+            if response.status_code == 200:
+                result = response.json()
+                # The API returns a list of lists of floats
+                return result
+                
+            elif response.status_code == 503:
+                # Model is loading, wait and retry
+                try:
+                    error_data = response.json()
+                    wait_time = error_data.get("estimated_time", 10.0)
+                except Exception:
+                    wait_time = 10.0
+                
+                # Cap the wait time to avoid hanging too long
+                wait_time = min(wait_time, 10.0)
+                await asyncio.sleep(wait_time)
+            else:
+                print(f"Embedding API failed with status {response.status_code}: {response.text}")
+                return [] # Gracefully fail
+                
+        return [] # Gracefully fail if max retries exceeded
 
 async def embed_text(text: str) -> list[float]:
     """Embed a single string."""
     vectors = await embed_texts([text])
-    return vectors[0]
+    if vectors and len(vectors) > 0:
+        return vectors[0]
+    return []

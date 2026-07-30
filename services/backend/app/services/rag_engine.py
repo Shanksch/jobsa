@@ -15,7 +15,7 @@ import instructor
 from litellm import acompletion
 
 from app.config import settings
-from app.schemas.autofill import FormSchema, AutofillResponse
+from app.schemas.autofill import FormSchema, AutofillResponse, JobMatchRequest, JobMatchResponse
 from app.services.retrieval import retrieve_for_form
 
 
@@ -93,3 +93,60 @@ async def generate_autofill_answers(
         return response_model
     except Exception:
         return AutofillResponse(answers={})
+
+async def generate_job_match_score(
+    profile: dict,
+    payload: JobMatchRequest,
+) -> JobMatchResponse:
+    """
+    Score the user's resume against a job description.
+    """
+    profile_id = profile["id"]
+    
+    # 1. Base profile context
+    profile_ctx = f"""
+    Name: {profile.get('full_name')}
+    Summary: {profile.get('summary') or ''}
+    """
+    context_parts = [f"--- PROFILE ---\n{profile_ctx.strip()}"]
+
+    # 2. Retrieve chunks relevant to the JD
+    # We embed the whole JD or maybe the first 2000 chars to find relevant experience
+    jd_query = payload.job_description[:2000] if payload.job_description else "Job Description"
+    chunks = await retrieve_for_form(profile_id, [jd_query], per_field_k=10)
+    
+    if chunks:
+        retrieved_ctx = "\n\n".join(f"[{c['source']}] {c['chunk_text']}" for c in chunks)
+        context_parts.append(f"--- RELEVANT BACKGROUND ---\n{retrieved_ctx}")
+        
+    full_context = "\n\n".join(context_parts)
+    
+    system_prompt = """
+    You are an expert technical recruiter and ATS evaluation system.
+    Your task is to analyze the provided CANDIDATE CONTEXT against the JOB DESCRIPTION and return a match score (0-100) and a brief justification (2-3 sentences max).
+    Be realistic and rigorous. If the candidate lacks key required skills, the score should be lower.
+    """
+    
+    user_prompt = f"""
+    JOB DESCRIPTION:
+    {payload.job_description[:8000]}
+    
+    CANDIDATE CONTEXT:
+    {full_context}
+    """
+    
+    client = instructor.from_litellm(acompletion)
+    
+    try:
+        response_model: JobMatchResponse = await client.chat.completions.create(
+            model=settings.litellm_model,
+            messages=[
+                {"role": "system", "content": system_prompt.strip()},
+                {"role": "user", "content": user_prompt.strip()},
+            ],
+            response_model=JobMatchResponse,
+            temperature=0.2,
+        )
+        return response_model
+    except Exception as e:
+        return JobMatchResponse(score=0, justification=f"Failed to generate match score: {str(e)}")

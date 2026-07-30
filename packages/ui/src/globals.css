@@ -2,16 +2,12 @@
 
 /*
  * JobSA Design System — CSS-first Tailwind v4 configuration.
- *
- * This file defines the full theme via @theme and CSS custom properties.
- * Both apps (extension + dashboard) import this file as their design token source.
- * Dark mode is class-based: add .dark to <html> to switch themes.
  */
 
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
-  /* ─── Colors (mapped from CSS custom properties for theme switching) ─── */
+  /* ─── Colors ─── */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -38,46 +34,65 @@
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
   --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 16px);
 
   /* ─── Typography ─── */
-  --font-sans: "SK Concretica", ui-sans-serif, system-ui, sans-serif,
+  --font-sans: "Outfit", ui-sans-serif, system-ui, sans-serif,
     "Apple Color Emoji", "Segoe UI Emoji";
   --font-mono: "JetBrains Mono", ui-monospace, "Cascadia Code", "Source Code Pro",
     monospace;
 
+  /* ─── Custom Shadows (Double-Bezel & Tinted) ─── */
+  --shadow-glass: 0 4px 30px rgba(0, 0, 0, 0.1);
+  --shadow-glass-inset: inset 0 1px 1px rgba(255, 255, 255, 0.15);
+  --shadow-primary-glow: 0 0 20px rgba(52, 211, 153, 0.3);
+  --shadow-card-hover: 0 10px 40px -10px rgba(0, 0, 0, 0.2);
+
   /* ─── Animations ─── */
-  --animate-fade-in: fade-in 0.3s ease-out both;
-  --animate-slide-up: slide-up 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
-  --animate-slide-in-right: slide-in-right 0.3s ease-out both;
+  --animate-fade-in: fade-in 0.5s cubic-bezier(0.32, 0.72, 0, 1) both;
+  --animate-slide-up: slide-up 0.6s cubic-bezier(0.32, 0.72, 0, 1) both;
+  --animate-slide-in-right: slide-in-right 0.5s cubic-bezier(0.32, 0.72, 0, 1) both;
+  --animate-scale-in: scale-in 0.4s cubic-bezier(0.32, 0.72, 0, 1) both;
+  --animate-shimmer: shimmer 2s infinite linear;
+  --animate-float: float 6s ease-in-out infinite;
 
   @keyframes fade-in {
     0% { opacity: 0; }
     100% { opacity: 1; }
   }
   @keyframes slide-up {
-    0% { opacity: 0; transform: translateY(12px); }
-    100% { opacity: 1; transform: translateY(0); }
+    0% { opacity: 0; transform: translateY(20px); filter: blur(4px); }
+    100% { opacity: 1; transform: translateY(0); filter: blur(0px); }
   }
   @keyframes slide-in-right {
-    0% { opacity: 0; transform: translateX(12px); }
+    0% { opacity: 0; transform: translateX(20px); }
     100% { opacity: 1; transform: translateX(0); }
+  }
+  @keyframes scale-in {
+    0% { opacity: 0; transform: scale(0.95); }
+    100% { opacity: 1; transform: scale(1); }
   }
   @keyframes shimmer {
     100% { transform: translateX(100%); }
+  }
+  @keyframes float {
+    0% { transform: translateY(0px); }
+    50% { transform: translateY(-10px); }
+    100% { transform: translateY(0px); }
   }
 }
 
 /* ─── Light Theme (default) ─────────────────────────────── */
 :root {
-  --radius: 0.25rem; /* Sharper corners for minimal look */
-  --background: #ffffff;
+  --radius: 0.5rem; /* Softer, modern corners */
+  --background: #fdfdfd;
   --foreground: #09090b;
   --card: #ffffff;
   --card-foreground: #09090b;
   --popover: #ffffff;
   --popover-foreground: #09090b;
-  --primary: #00e599; /* Mint Green */
-  --primary-foreground: #09090b;
+  --primary: #10b981; /* Emerald-500 */
+  --primary-foreground: #ffffff;
   --secondary: #f4f4f5;
   --secondary-foreground: #18181b;
   --muted: #f4f4f5;
@@ -88,35 +103,39 @@
   --destructive-foreground: #fafafa;
   --border: #e4e4e7;
   --input: #e4e4e7;
-  --ring: #00e599;
+  --ring: #10b981;
 }
 
 /* ─── Dark Theme ────────────────────────────────────────── */
 .dark {
-  --background: #09090b;
+  --background: #0a0a0f; /* Tinted deep charcoal, not pure black */
   --foreground: #fafafa;
-  --card: #09090b;
+  --card: #111118; /* Elevated above background */
   --card-foreground: #fafafa;
-  --popover: #09090b;
+  --popover: #111118;
   --popover-foreground: #fafafa;
-  --primary: #00e599; /* Mint Green */
-  --primary-foreground: #09090b;
-  --secondary: #27272a;
+  --primary: #34d399; /* Emerald-400 - more refined */
+  --primary-foreground: #022c22;
+  --secondary: #1a1a24;
   --secondary-foreground: #fafafa;
-  --muted: #27272a;
+  --muted: #16161e;
   --muted-foreground: #a1a1aa;
-  --accent: #27272a;
+  --accent: #1a1a24;
   --accent-foreground: #fafafa;
-  --destructive: #7f1d1d;
+  --destructive: #ef4444;
   --destructive-foreground: #fafafa;
-  --border: #27272a;
-  --input: #27272a;
-  --ring: #00e599;
+  --border: #1e1e2a; /* Subtle blue tint */
+  --input: #1e1e2a;
+  --ring: #34d399;
 }
 
 /* ─── Base Styles ───────────────────────────────────────── */
 * {
   border-color: var(--border);
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 body {
@@ -125,4 +144,35 @@ body {
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  text-wrap: balance;
+  letter-spacing: -0.02em;
+}
+
+/* ─── Ambient Noise Overlay ─── */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+  opacity: 0.025;
+}
+.dark body::after {
+  opacity: 0.04;
+}
+
+/* ─── Accessibility: Reduced Motion ─── */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

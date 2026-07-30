@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Button } from "@jobsa/ui";
+import { Button, Logo } from "@jobsa/ui";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowRight,
   Check,
@@ -15,36 +16,7 @@ import {
 import { useAuth } from "../contexts/AuthContext.js";
 
 /* ────────────────────────────────────────────────────────────────────────
- * Hero demo data — a fictional application, used only to visualize how
- * JobSA fills a real multi-field ATS form (resume parse → match →
- * autofill → human review). No real applicant or company data.
- * ──────────────────────────────────────────────────────────────────────── */
-interface FieldDef {
-  label: string;
-  value: string;
-  multiline?: boolean;
-}
-
-const DEMO_FIELDS: FieldDef[] = [
-  { label: "Full name", value: "Jordan Avery" },
-  { label: "Email", value: "jordan.avery@gmail.com" },
-  { label: "LinkedIn URL", value: "linkedin.com/in/jordanavery" },
-  {
-    label: "Why do you want to work here?",
-    value:
-      "My last two roles were spent building the exact kind of distributed data pipelines your platform team is scaling right now.",
-    multiline: true,
-  },
-  { label: "Desired salary", value: "$165,000" },
-];
-
-const ATS_ROTATION = ["Greenhouse", "Lever", "Workday"] as const;
-
-/* ────────────────────────────────────────────────────────────────────────
- * Theme toggle — persists to localStorage, falls back to the visitor's
- * system preference on first load. Toggling flips the `.dark` class on
- * <html>, which every color in this file already derives from via the
- * design system's CSS variables (bg-background, text-foreground, etc.).
+ * Theme logic
  * ──────────────────────────────────────────────────────────────────────── */
 type Theme = "light" | "dark";
 const THEME_STORAGE_KEY = "jobsa-theme";
@@ -52,481 +24,401 @@ const THEME_STORAGE_KEY = "jobsa-theme";
 function getInitialTheme(): Theme {
   const stored = window.localStorage.getItem(THEME_STORAGE_KEY);
   if (stored === "light" || stored === "dark") return stored;
-  return window.matchMedia("(prefers-color-scheme: dark)").matches
-    ? "dark"
-    : "light";
+  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 }
 
 function useTheme() {
   const [theme, setTheme] = useState<Theme>(getInitialTheme);
-
   useEffect(() => {
     document.documentElement.classList.toggle("dark", theme === "dark");
     window.localStorage.setItem(THEME_STORAGE_KEY, theme);
   }, [theme]);
-
   const toggleTheme = () => setTheme((t) => (t === "dark" ? "light" : "dark"));
-
   return { theme, toggleTheme };
 }
 
-function useReducedMotion(): boolean {
-  const [reduced, setReduced] = useState(false);
-  useEffect(() => {
-    const query = window.matchMedia("(prefers-reduced-motion: reduce)");
-    setReduced(query.matches);
-    const handler = () => setReduced(query.matches);
-    query.addEventListener("change", handler);
-    return () => query.removeEventListener("change", handler);
-  }, []);
-  return reduced;
-}
-
-function FieldRow({
-  field,
-  filled,
-  active,
-}: {
-  field: FieldDef;
-  filled: boolean;
-  active: boolean;
-}) {
-  return (
-    <div className="space-y-1.5">
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-medium text-muted-foreground">
-          {field.label}
-        </span>
-        <span
-          className={`flex items-center gap-1 font-mono text-[10px] text-emerald-600 transition-opacity duration-300 dark:text-emerald-400 ${filled ? "opacity-100" : "opacity-0"
-            }`}
-        >
-          <Check className="size-3" strokeWidth={2.5} />
-          matched
-        </span>
-      </div>
-      <div
-        className={`relative rounded-lg border px-3 py-2 text-sm leading-relaxed transition-colors duration-500 ${filled
-            ? "border-primary/25 bg-primary/[0.04]"
-            : "border-border bg-muted/30"
-          } ${field.multiline ? "min-h-[3.25rem]" : ""}`}
-      >
-        <span
-          className={`transition-opacity duration-500 ${filled ? "opacity-100" : "opacity-0"
-            }`}
-        >
-          {field.value}
-        </span>
-        {active && !filled && (
-          <span className="ml-0.5 inline-block h-4 w-px animate-pulse bg-primary align-middle" />
-        )}
-      </div>
-    </div>
-  );
-}
-
-function AutofillPanel() {
-  const reducedMotion = useReducedMotion();
-  const [step, setStep] = useState(0);
-  const [atsIndex, setAtsIndex] = useState(0);
-
-  useEffect(() => {
-    if (reducedMotion) {
-      setStep(DEMO_FIELDS.length + 1);
-      return;
-    }
-
-    let alive = true;
-    const timers: ReturnType<typeof setTimeout>[] = [];
-
-    const run = () => {
-      setStep(0);
-      setAtsIndex((i) => i + 1);
-
-      DEMO_FIELDS.forEach((_, i) => {
-        timers.push(
-          setTimeout(() => {
-            if (alive) setStep(i + 1);
-          }, 600 + i * 850)
-        );
-      });
-
-      const reviewAt = 600 + DEMO_FIELDS.length * 850 + 500;
-      timers.push(
-        setTimeout(() => {
-          if (alive) setStep(DEMO_FIELDS.length + 1);
-        }, reviewAt)
-      );
-      timers.push(
-        setTimeout(() => {
-          if (alive) run();
-        }, reviewAt + 2600)
-      );
-    };
-
-    run();
-    return () => {
-      alive = false;
-      timers.forEach(clearTimeout);
-    };
-  }, [reducedMotion]);
-
-  const allFilled = step >= DEMO_FIELDS.length;
-  const reviewed = step > DEMO_FIELDS.length;
-  const currentAts = ATS_ROTATION[atsIndex % ATS_ROTATION.length] ?? "Greenhouse";
-
-  return (
-    <div className="relative overflow-hidden rounded-2xl border border-border bg-card shadow-2xl">
-      <div className="flex items-center justify-between border-b border-border bg-muted/40 px-5 py-3">
-        <div className="flex items-center gap-2 font-mono text-xs text-muted-foreground">
-          <span className="relative flex size-1.5">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-500/60" />
-            <span className="relative inline-flex size-1.5 rounded-full bg-emerald-500" />
-          </span>
-          {currentAts} · Senior Product Designer
-        </div>
-        <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground/60">
-          Anchor Robotics
-        </span>
-      </div>
-
-      <div className="space-y-4 p-5 sm:p-6">
-        {DEMO_FIELDS.map((field, i) => (
-          <FieldRow
-            key={field.label}
-            field={field}
-            filled={i < step}
-            active={i === step}
-          />
-        ))}
-
-        <div
-          className={`flex items-center justify-between border-t border-border pt-4 transition-opacity duration-500 ${allFilled ? "opacity-100" : "opacity-0"
-            }`}
-        >
-          <span className="text-xs text-muted-foreground">
-            {reviewed ? "Submitted — you clicked review" : "Ready for your review"}
-          </span>
-          <Button size="sm" className={!reviewed ? "animate-pulse" : ""}>
-            {reviewed ? (
-              <>
-                <Check className="size-3.5" /> Reviewed
-              </>
-            ) : (
-              "Review & Submit"
-            )}
-          </Button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* ──────────────────────────────────────────────────────────────────────── */
-
+/* ────────────────────────────────────────────────────────────────────────
+ * Data & Constants
+ * ──────────────────────────────────────────────────────────────────────── */
 const FEATURES = [
   {
     icon: FileText,
-    title: "Resume parsing & knowledge base",
-    description:
-      "Upload your resume once. JobSA extracts your experience, skills, and projects into a structured knowledge base it reuses across every application.",
+    title: "Resume Parsing Engine",
+    description: "Your master knowledge base. Upload once, and we extract every nuance of your career.",
   },
   {
     icon: Zap,
-    title: "Cross-ATS autofill",
-    description:
-      "One browser extension, every platform. JobSA reads the fields on Greenhouse, Lever, and Workday forms and fills them — including long, free-text questions.",
+    title: "Omni-ATS Autofill",
+    description: "Greenhouse, Lever, Workday. One click fills entire applications accurately.",
   },
   {
     icon: Target,
-    title: "Tailored match scoring",
-    description:
-      "Each role is scored against your background before you apply, so your time goes to the applications you're actually likely to hear back from.",
+    title: "Precision Matching",
+    description: "Know your compatibility score before you spend time writing a single word.",
   },
   {
     icon: ShieldCheck,
-    title: "Human-in-the-loop review",
-    description:
-      "AI drafts the answers, you approve them. Every application stops at a review screen — nothing is submitted without your click.",
+    title: "Human Approval",
+    description: "Nothing submits without you. Review every answer, edit, and send with confidence.",
   },
 ];
 
 const STEPS = [
-  {
-    title: "Parse your resume",
-    description:
-      "Upload once. JobSA extracts your experience, skills, and projects into a career knowledge base it can draw on for any application.",
-  },
-  {
-    title: "Match the role",
-    description:
-      "Every open position gets scored against your background, so you know where you're a genuine fit before you spend time applying.",
-  },
-  {
-    title: "Autofill the application",
-    description:
-      "The extension reads each ATS form field-by-field and fills it from your knowledge base — short answers and long-form questions alike.",
-  },
-  {
-    title: "Review, then submit",
-    description:
-      "Nothing sends automatically. You check the answers, edit anything you'd change, and click submit yourself.",
-  },
+  { num: "01", title: "Parse", desc: "Build your knowledge base from a PDF." },
+  { num: "02", title: "Match", desc: "Score roles against your exact profile." },
+  { num: "03", title: "Autofill", desc: "The extension writes the answers." },
+  { num: "04", title: "Review", desc: "You click submit. No ghosts." },
 ];
 
-const ATS_PLATFORMS = [
-  "Greenhouse",
-  "Lever",
-  "Workday",
-  "iCIMS",
-  "SmartRecruiters",
-  "SuccessFactors",
+const ATS_PLATFORMS = ["Greenhouse", "Lever", "Workday", "iCIMS", "SmartRecruiters", "Ashby"];
+
+/* ────────────────────────────────────────────────────────────────────────
+ * Animation Variants (Custom Cubic-Bezier for Premium Feel)
+ * ──────────────────────────────────────────────────────────────────────── */
+const transitionPremium = { duration: 0.8, ease: [0.32, 0.72, 0, 1] };
+
+const staggerContainer = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: { staggerChildren: 0.15 },
+  },
+};
+
+const fadeUpVariant = {
+  hidden: { opacity: 0, y: 30, filter: "blur(8px)" },
+  visible: {
+    opacity: 1,
+    y: 0,
+    filter: "blur(0px)",
+    transition: transitionPremium,
+  },
+};
+
+/* ────────────────────────────────────────────────────────────────────────
+ * Hero Autofill Demo (Redesigned)
+ * ──────────────────────────────────────────────────────────────────────── */
+const DEMO_FIELDS = [
+  { label: "Full Name", value: "Jordan Avery" },
+  { label: "Email", value: "jordan.avery@gmail.com" },
+  { label: "Why this role?", value: "My background building distributed systems aligns perfectly with your platform scalability goals.", multiline: true },
 ];
 
+function PremiumDemoPanel() {
+  const [step, setStep] = useState(0);
+
+  useEffect(() => {
+    let alive = true;
+    const run = () => {
+      setStep(0);
+      setTimeout(() => alive && setStep(1), 1000);
+      setTimeout(() => alive && setStep(2), 1800);
+      setTimeout(() => alive && setStep(3), 2600);
+      setTimeout(() => alive && setStep(4), 3800);
+      setTimeout(() => alive && run(), 6000);
+    };
+    run();
+    return () => { alive = false; };
+  }, []);
+
+  return (
+    <div className="relative w-full max-w-lg mx-auto md:mr-0">
+      {/* Outer Shell (Double Bezel effect) */}
+      <div className="rounded-[2.5rem] bg-card p-2 border border-border shadow-2xl relative z-10 overflow-hidden">
+        {/* Inner Core */}
+        <div className="rounded-[2rem] bg-background p-6 lg:p-8 shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)] border border-border/50 relative overflow-hidden">
+          
+          {/* Subtle glowing orb inside the card */}
+          <div className="absolute -top-24 -right-24 w-48 h-48 bg-primary/20 rounded-full blur-[60px]" />
+
+          <div className="flex items-center gap-2 mb-8 relative z-10">
+            <span className="flex size-2 relative">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary/60" />
+              <span className="relative inline-flex size-2 rounded-full bg-primary" />
+            </span>
+            <span className="font-mono text-xs text-muted-foreground uppercase tracking-widest">
+              Greenhouse Auto-Fill
+            </span>
+          </div>
+
+          <div className="space-y-6 relative z-10">
+            {DEMO_FIELDS.map((field, i) => {
+              const isFilled = step > i;
+              const isActive = step === i;
+              return (
+                <div key={field.label} className="space-y-2 relative">
+                  <div className="flex justify-between items-end">
+                    <label className="text-xs font-semibold text-muted-foreground">{field.label}</label>
+                    <AnimatePresence>
+                      {isFilled && (
+                        <motion.span 
+                          initial={{ opacity: 0, scale: 0.8 }} 
+                          animate={{ opacity: 1, scale: 1 }}
+                          className="text-[10px] text-primary flex items-center gap-1 font-mono uppercase"
+                        >
+                          <Check className="size-3" /> Inserted
+                        </motion.span>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                  <div className={`relative w-full rounded-xl border px-4 py-3 text-sm transition-all duration-500 ${
+                    isFilled ? "bg-primary/[0.04] border-primary/20 text-foreground" : "bg-muted/40 border-border text-transparent"
+                  } ${field.multiline ? "min-h-[5rem]" : "h-11"}`}>
+                    <span className="relative z-10">{isFilled ? field.value : ""}</span>
+                    
+                    {/* Active Scanning state */}
+                    {isActive && (
+                      <motion.div 
+                        layoutId="scanner"
+                        className="absolute inset-0 border border-primary/50 bg-primary/[0.02] rounded-xl shadow-[0_0_15px_rgba(52,211,153,0.15)]"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                      >
+                        <div className="w-1 h-4 bg-primary absolute left-4 top-3.5 animate-pulse rounded-full" />
+                      </motion.div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Submit Button */}
+          <motion.div 
+            className="mt-8 pt-6 border-t border-border/50 flex justify-end relative z-10"
+            animate={{ opacity: step >= 3 ? 1 : 0.4 }}
+          >
+            <button className="bg-foreground text-background font-semibold text-sm px-6 py-2.5 rounded-full flex items-center gap-2 hover:scale-[0.98] transition-transform">
+              {step >= 4 ? <Check className="size-4" /> : "Review & Submit"}
+            </button>
+          </motion.div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ────────────────────────────────────────────────────────────────────────
+ * Main Page Component
+ * ──────────────────────────────────────────────────────────────────────── */
 export function LandingPage() {
   const { session } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const destination = session ? "/dashboard" : "/login";
 
   return (
-    <div className="min-h-screen overflow-x-hidden bg-background font-sans text-foreground selection:bg-primary/20">
-      {/* Navigation */}
-      <header className="fixed left-0 top-0 z-50 w-full border-b border-border bg-background/80 backdrop-blur-md">
-        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6">
-          <div className="flex shrink-0 items-center gap-2">
-            <div className="flex size-8 items-center justify-center rounded-lg bg-primary text-sm font-bold text-primary-foreground">
-              J
-            </div>
-            <span className="text-xl font-bold tracking-tight">
+    <div className="min-h-screen bg-background text-foreground overflow-x-hidden selection:bg-primary/20">
+      
+      {/* Floating Glass Navigation */}
+      <motion.header 
+        initial={{ y: -20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ duration: 0.8, ease: [0.32, 0.72, 0, 1], delay: 0.1 }}
+        className="fixed top-6 left-0 right-0 z-50 mx-auto w-max max-w-[calc(100vw-2rem)]"
+      >
+        <div className="flex h-14 items-center justify-between gap-8 rounded-full border border-border/50 bg-background/60 px-6 backdrop-blur-2xl shadow-glass">
+          <Link to="/" className="flex shrink-0 items-center gap-2">
+            <Logo className="size-6" />
+            <span className="text-base font-bold tracking-tight">
               Job<span className="text-primary">SA</span>
             </span>
-          </div>
+          </Link>
 
-          <nav className="hidden items-center gap-8 text-sm font-medium text-muted-foreground md:flex">
-            <a href="#features" className="transition-colors hover:text-foreground">
-              Features
-            </a>
-            <a href="#how-it-works" className="transition-colors hover:text-foreground">
-              How it Works
-            </a>
-            <a href="#about" className="transition-colors hover:text-foreground">
-              About
-            </a>
+          <nav className="hidden items-center gap-6 text-sm font-medium text-muted-foreground md:flex">
+            <a href="#features" className="hover:text-foreground transition-colors">Features</a>
+            <a href="#how-it-works" className="hover:text-foreground transition-colors">How it Works</a>
           </nav>
 
-          <div className="flex items-center gap-2 sm:gap-4">
-            <Button
-              variant="ghost"
-              size="icon"
+          <div className="flex items-center gap-3">
+            <button
               onClick={toggleTheme}
-              aria-label={
-                theme === "dark" ? "Switch to light theme" : "Switch to dark theme"
-              }
+              className="flex size-8 items-center justify-center rounded-full bg-muted hover:bg-muted/80 text-foreground transition-colors"
             >
-              {theme === "dark" ? (
-                <Sun className="size-4" />
-              ) : (
-                <Moon className="size-4" />
-              )}
-            </Button>
-
-            {session ? (
-              <Link to="/dashboard">
-                <Button>Go to Dashboard</Button>
-              </Link>
-            ) : (
-              <>
-                <Link
-                  to="/login"
-                  className="hidden text-sm font-medium transition-colors hover:text-primary sm:block"
-                >
-                  Sign In
-                </Link>
-                <Link to="/login">
-                  <Button>Join Now</Button>
-                </Link>
-              </>
-            )}
+              {theme === "dark" ? <Sun className="size-4" /> : <Moon className="size-4" />}
+            </button>
+            <Link to={destination}>
+              <div className="group relative inline-flex items-center justify-center bg-foreground text-background rounded-full px-5 py-2 text-sm font-semibold transition-transform active:scale-95 cursor-pointer">
+                {session ? "Dashboard" : "Sign In"}
+              </div>
+            </Link>
           </div>
         </div>
-      </header>
+      </motion.header>
 
-      {/* Hero */}
-      <section className="relative w-full overflow-hidden pb-16 pt-32 lg:pb-28 lg:pt-44">
-        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(0,0,0,0.025)_1px,transparent_1px),linear-gradient(90deg,rgba(0,0,0,0.025)_1px,transparent_1px)] bg-[size:56px_56px] [mask-image:radial-gradient(ellipse_60%_60%_at_50%_0%,black_40%,transparent_100%)] dark:bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)]" />
+      {/* Hero Section — Ethereal Glass / Editorial Split Vibe */}
+      <section className="relative pt-32 pb-20 lg:pt-36 lg:pb-32 px-6 min-h-[90vh] flex items-center">
+        {/* Background ambient glowing orbs */}
+        <div className="absolute top-1/4 left-0 w-[500px] h-[500px] bg-primary/10 rounded-full blur-[120px] pointer-events-none -translate-x-1/2" />
+        <div className="absolute bottom-0 right-0 w-[600px] h-[600px] bg-blue-500/5 rounded-full blur-[120px] pointer-events-none translate-x-1/3 translate-y-1/3" />
+        
+        <div className="mx-auto max-w-7xl w-full">
+          <div className="grid lg:grid-cols-2 gap-16 lg:gap-8 items-center">
+            
+            {/* Left: Massive Typography */}
+            <motion.div 
+              variants={staggerContainer}
+              initial="hidden"
+              animate="visible"
+              className="max-w-2xl"
+            >
+              <motion.div variants={fadeUpVariant} className="mb-8 inline-flex items-center gap-2 rounded-full border border-border/60 bg-muted/30 px-3 py-1 font-mono text-xs font-medium text-muted-foreground backdrop-blur-md">
+                <Sparkles className="size-3 text-primary" />
+                <span>The intelligent application copilot</span>
+              </motion.div>
 
-        <div className="relative mx-auto max-w-7xl px-4 sm:px-6">
-          <div className="flex flex-col items-center gap-14 md:flex-row md:items-center md:gap-16">
-            {/* Copy */}
-            <div className="w-full space-y-7 md:w-1/2">
-              <div className="inline-flex items-center gap-2 rounded-full border border-border bg-muted/50 px-3 py-1 font-mono text-xs text-muted-foreground">
-                <span className="relative flex size-1.5">
-                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary/60" />
-                  <span className="relative inline-flex size-1.5 rounded-full bg-primary" />
-                </span>
-                ai copilot for job applications
-              </div>
+              <motion.h1 variants={fadeUpVariant} className="text-[3.5rem] leading-[1.05] tracking-tight font-bold sm:text-6xl lg:text-[4.5rem] mb-6">
+                AI fills it in.<br/>
+                <span className="text-primary bg-clip-text">You hit submit.</span>
+              </motion.h1>
 
-              <h1 className="text-5xl font-bold leading-[1.05] tracking-tight sm:text-6xl lg:text-[4.25rem]">
-                AI fills it in.
-                <br />
-                <span className="text-primary">You hit submit.</span>
-              </h1>
+              <motion.p variants={fadeUpVariant} className="text-lg text-muted-foreground leading-relaxed mb-10 max-w-xl">
+                Parse your resume once. Let JobSA seamlessly autofill Greenhouse, Lever, and Workday forms field-by-field. Nothing sends without your human review.
+              </motion.p>
 
-              <p className="max-w-lg text-lg leading-relaxed text-muted-foreground">
-                JobSA parses your resume once, then autofills Greenhouse,
-                Lever, and Workday applications field-by-field — matched to
-                the role, and reviewed by you before anything sends.
-              </p>
-
-              <div className="flex flex-col items-start gap-4 pt-2 sm:flex-row sm:items-center">
+              <motion.div variants={fadeUpVariant} className="flex flex-wrap items-center gap-4">
                 <Link to={destination}>
-                  <Button size="lg" className="gap-2 px-7 text-base font-semibold">
+                  {/* Button-in-Button Pattern */}
+                  <div className="group flex items-center gap-1 bg-primary text-primary-foreground rounded-full pl-6 pr-2 py-2 font-semibold text-base transition-transform active:scale-95 shadow-primary-glow cursor-pointer">
                     Try it free
-                    <ArrowRight className="size-4" />
-                  </Button>
+                    <div className="flex size-8 items-center justify-center rounded-full bg-black/10 ml-2 group-hover:translate-x-1 transition-transform">
+                      <ArrowRight className="size-4" />
+                    </div>
+                  </div>
                 </Link>
-                <span className="text-sm text-muted-foreground">
-                  Free to start — nothing submits without your review.
-                </span>
-              </div>
-            </div>
+                <p className="text-sm text-muted-foreground ml-2">No credit card required.</p>
+              </motion.div>
+            </motion.div>
 
-            {/* Signature autofill visualization */}
-            <div className="w-full md:w-1/2">
-              <AutofillPanel />
-            </div>
+            {/* Right: The Z-Axis Cascade Demo */}
+            <motion.div 
+              initial={{ opacity: 0, x: 40, filter: "blur(10px)" }}
+              animate={{ opacity: 1, x: 0, filter: "blur(0px)" }}
+              transition={{ duration: 1, ease: [0.32, 0.72, 0, 1], delay: 0.2 }}
+              className="relative w-full"
+            >
+              <PremiumDemoPanel />
+            </motion.div>
+
           </div>
         </div>
       </section>
 
-      {/* Works-with strip */}
-      <section className="border-y border-border bg-muted/20 py-10">
-        <div className="mx-auto max-w-7xl px-6">
-          <p className="mb-6 text-center font-mono text-xs uppercase tracking-widest text-muted-foreground/70">
-            Autofills applications across
+      {/* ATS Platforms Marquee (Static elegant layout) */}
+      <section className="border-y border-border/40 bg-muted/10 py-12">
+        <div className="mx-auto max-w-7xl px-6 flex flex-col md:flex-row items-center justify-between gap-8">
+          <p className="font-mono text-xs uppercase tracking-widest text-muted-foreground whitespace-nowrap">
+            Works effortlessly with
           </p>
-          <div className="flex flex-wrap items-center justify-center gap-x-10 gap-y-4">
-            {ATS_PLATFORMS.map((name) => (
-              <span
-                key={name}
-                className="text-lg font-semibold text-muted-foreground/50 transition-colors hover:text-foreground sm:text-xl"
+          <div className="flex flex-wrap justify-center gap-x-8 gap-y-4">
+            {ATS_PLATFORMS.map((name, i) => (
+              <motion.span 
+                initial={{ opacity: 0 }}
+                whileInView={{ opacity: 1 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.1, duration: 0.8 }}
+                key={name} 
+                className="text-lg font-bold text-muted-foreground/40 hover:text-foreground transition-colors"
               >
                 {name}
-              </span>
+              </motion.span>
             ))}
           </div>
         </div>
       </section>
 
-      {/* How it works */}
-      <section id="how-it-works" className="border-b border-border/50 py-24">
-        <div className="mx-auto max-w-7xl px-6">
-          <div className="mx-auto mb-16 max-w-2xl space-y-4 text-center">
-            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
-              From resume to submitted application
-            </h2>
-            <p className="text-lg text-muted-foreground">
-              Four steps, and you're only ever one click away from the send button.
-            </p>
-          </div>
+      {/* How it works (The Z-Axis Cascade cards) */}
+      <section id="how-it-works" className="py-32 px-6">
+        <div className="mx-auto max-w-7xl">
+          <motion.div 
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, margin: "-100px" }}
+            variants={fadeUpVariant}
+            className="mb-20 max-w-2xl"
+          >
+            <h2 className="text-4xl font-bold tracking-tight mb-4">From PDF to submitted application.</h2>
+            <p className="text-xl text-muted-foreground">Four precise steps. You're always in control.</p>
+          </motion.div>
 
-          <div className="relative">
-            <div className="absolute inset-x-0 top-6 hidden h-px bg-border lg:block" />
-            <div className="grid grid-cols-1 gap-10 sm:grid-cols-2 lg:grid-cols-4 lg:gap-6">
-              {STEPS.map((step, i) => (
-                <div key={step.title} className="relative flex flex-col gap-4">
-                  <div className="relative z-10 flex size-12 items-center justify-center rounded-full border border-border bg-background font-mono text-sm font-semibold text-primary">
-                    {String(i + 1).padStart(2, "0")}
-                  </div>
-                  <h3 className="text-lg font-semibold">{step.title}</h3>
-                  <p className="text-sm leading-relaxed text-muted-foreground">
-                    {step.description}
-                  </p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Features */}
-      <section id="features" className="bg-muted/10 py-24">
-        <div className="mx-auto max-w-7xl px-6">
-          <div className="mx-auto mb-16 max-w-2xl space-y-4 text-center">
-            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
-              Everything you need to apply, without the busywork
-            </h2>
-            <p className="text-lg text-muted-foreground">
-              JobSA replaces a dozen browser tabs and copy-pasted answers with one workflow.
-            </p>
-          </div>
-
-          <div className="grid gap-6 md:grid-cols-2">
-            {FEATURES.map(({ icon: Icon, title, description }) => (
-              <div
-                key={title}
-                className="rounded-2xl border border-border bg-card/50 p-8 transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:bg-card"
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {STEPS.map((step, i) => (
+              <motion.div 
+                key={step.num}
+                initial="hidden"
+                whileInView="visible"
+                viewport={{ once: true, margin: "-50px" }}
+                variants={{
+                  hidden: { opacity: 0, y: 30 },
+                  visible: { opacity: 1, y: 0, transition: { delay: i * 0.1, ...transitionPremium } }
+                }}
+                className="group relative rounded-[2rem] bg-card border border-border p-8 hover:shadow-card-hover transition-all duration-500"
               >
-                <div className="mb-6 flex size-14 items-center justify-center rounded-xl bg-primary/10">
-                  <Icon className="size-7 text-primary" />
+                <div className="mb-12 font-mono text-xs font-semibold text-primary/50 group-hover:text-primary transition-colors">
+                  {step.num}
                 </div>
-                <h3 className="mb-3 text-xl font-semibold">{title}</h3>
-                <p className="leading-relaxed text-muted-foreground">{description}</p>
-              </div>
+                <h3 className="text-xl font-bold mb-3">{step.title}</h3>
+                <p className="text-muted-foreground leading-relaxed">{step.desc}</p>
+              </motion.div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* About */}
-      <section id="about" className="py-24">
-        <div className="mx-auto max-w-3xl px-6 text-center">
-          <div className="mx-auto mb-6 flex size-12 items-center justify-center rounded-xl bg-primary/10">
-            <Sparkles className="size-6 text-primary" />
-          </div>
-          <h2 className="mb-4 text-2xl font-bold tracking-tight sm:text-3xl">
-            Built for people applying to more than one job
-          </h2>
-          <p className="text-lg leading-relaxed text-muted-foreground">
-            Every ATS asks for the same information in a different shape.
-            JobSA exists to remove that retyping — not the decisions. You
-            still choose what to apply to, and you still hit submit.
-          </p>
-        </div>
-      </section>
+      {/* Features (Asymmetrical Bento) */}
+      <section id="features" className="py-32 px-6 bg-muted/20 border-t border-border/40">
+        <div className="mx-auto max-w-7xl">
+          <motion.div 
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, margin: "-100px" }}
+            variants={fadeUpVariant}
+            className="mb-16"
+          >
+            <h2 className="text-4xl font-bold tracking-tight mb-4">Everything you need. Nothing you don't.</h2>
+            <p className="text-xl text-muted-foreground">Stop repeating yourself across a dozen browser tabs.</p>
+          </motion.div>
 
-      {/* Final CTA */}
-      <section className="border-y border-border bg-primary/5 py-20">
-        <div className="mx-auto max-w-3xl px-6 text-center">
-          <h2 className="mb-4 text-3xl font-bold tracking-tight sm:text-4xl">
-            Stop retyping your resume.
-          </h2>
-          <p className="mb-8 text-lg text-muted-foreground">
-            Parse it once. Let JobSA handle the forms — you handle the decisions.
-          </p>
-          <Link to={destination}>
-            <Button size="lg" className="gap-2 px-8 text-base font-semibold">
-              Try it free
-              <ArrowRight className="size-4" />
-            </Button>
-          </Link>
+          <div className="grid md:grid-cols-2 gap-6">
+            {FEATURES.map((feat, i) => {
+              const Icon = feat.icon;
+              return (
+                <motion.div 
+                  key={feat.title}
+                  initial="hidden"
+                  whileInView="visible"
+                  viewport={{ once: true, margin: "-50px" }}
+                  variants={{
+                    hidden: { opacity: 0, scale: 0.95 },
+                    visible: { opacity: 1, scale: 1, transition: { delay: i * 0.1, ...transitionPremium } }
+                  }}
+                  className="rounded-[2rem] bg-card border border-border p-8 md:p-10 hover:border-primary/30 transition-colors duration-500"
+                >
+                  <div className="flex size-14 items-center justify-center rounded-2xl bg-primary/10 mb-8">
+                    <Icon className="size-6 text-primary" strokeWidth={1.5} />
+                  </div>
+                  <h3 className="text-2xl font-bold mb-4">{feat.title}</h3>
+                  <p className="text-muted-foreground leading-relaxed text-lg">{feat.description}</p>
+                </motion.div>
+              );
+            })}
+          </div>
         </div>
       </section>
 
       {/* Footer */}
-      <footer className="bg-card py-12">
-        <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-6 px-6 md:flex-row">
+      <footer className="border-t border-border bg-background py-12 px-6">
+        <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-6 md:flex-row">
           <div className="flex items-center gap-2">
-            <div className="flex size-6 items-center justify-center rounded bg-primary text-xs font-bold text-primary-foreground">
+            <div className="flex size-6 items-center justify-center rounded-full bg-foreground text-xs font-bold text-background">
               J
             </div>
             <span className="text-base font-bold tracking-tight">
-              Job<span className="text-primary">SA</span>
+              JobSA
             </span>
           </div>
           <p className="text-sm text-muted-foreground">
-            © {new Date().getFullYear()} JobSA. All rights reserved.
+            © {new Date().getFullYear()} JobSA. Engineered for precision.
           </p>
         </div>
       </footer>

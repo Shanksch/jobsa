@@ -24,10 +24,10 @@ export function DataTable<T extends { id: string | number }>({
   className,
 }: DataTableProps<T>) {
   return (
-    <div className={cn("w-full overflow-auto rounded-lg border border-border bg-card", className)}>
+    <div className={cn("w-full overflow-auto rounded-3xl border border-border/60 bg-card shadow-sm", className)}>
       <table className="w-full caption-bottom text-sm">
-        <thead className="[&_tr]:border-b bg-muted/40">
-          <tr className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
+        <thead className="[&_tr]:border-b bg-muted/20">
+          <tr className="border-b border-border/60 transition-colors hover:bg-muted/30 data-[state=selected]:bg-muted">
             {columns.map((col, index) => (
               <th
                 key={index}

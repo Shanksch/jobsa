@@ -1,0 +1,10 @@
+@import "@jobsa/ui/globals.css";
+@source "../../../../packages/ui/src/**/*.{ts,tsx}";
+
+body {
+  margin: 0;
+  width: 100%;
+  height: 100vh;
+  overflow-x: hidden;
+  background-color: var(--background);
+}

@@ -29,3 +29,11 @@ class AutofillResponse(BaseModel):
     answers: dict[str, str] = Field(
         description="A mapping of field IDs to their generated string answers."
     )
+
+class JobMatchRequest(BaseModel):
+    resume_id: str
+    job_description: str
+
+class JobMatchResponse(BaseModel):
+    score: int = Field(description="Match score from 0 to 100")
+    justification: str = Field(description="Brief justification for the score (2-3 sentences max)")

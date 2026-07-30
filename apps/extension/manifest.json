@@ -4,16 +4,18 @@
   "description": "Intelligently autofill job applications across ATS platforms with AI-powered matching and human review.",
   "version": "0.1.0",
   "icons": {
-    "16": "public/icons/icon-16.png",
-    "48": "public/icons/icon-48.png",
-    "128": "public/icons/icon-128.png"
+    "16": "public/logo.png",
+    "48": "public/logo.png",
+    "128": "public/logo.png"
   },
   "action": {
-    "default_popup": "src/popup/index.html",
     "default_icon": {
-      "16": "public/icons/icon-16.png",
-      "48": "public/icons/icon-48.png"
+      "16": "public/logo.png",
+      "48": "public/logo.png"
     }
+  },
+  "side_panel": {
+    "default_path": "src/sidepanel/index.html"
   },
   "background": {
     "service_worker": "src/background/service-worker.ts",
@@ -29,17 +31,20 @@
     },
     {
       "matches": [
-        "https://jobsa-web-dashboard.vercel.app/*"
+        "https://jobsa-web-dashboard.vercel.app/*",
+        "http://localhost:5173/*"
       ],
       "js": ["src/content/auth-sync.ts"]
     }
   ],
   "permissions": [
     "storage",
-    "activeTab"
+    "activeTab",
+    "sidePanel"
   ],
   "host_permissions": [
     "https://jobsa-backend.onrender.com/*",
+    "http://localhost:8000/*",
     "https://xhnzyznqeojaqqzutdfp.supabase.co/*"
   ]
 }

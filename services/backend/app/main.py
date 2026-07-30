@@ -18,7 +18,7 @@ from app.core.middleware import RequestIDMiddleware
 from app.api.routes.health import router as health_router
 from app.api.routes.resumes import router as resumes_router
 from app.api.routes.autofill import router as autofill_router
-
+from app.api.routes.match import router as match_router
 
 logger = structlog.get_logger()
 
@@ -68,6 +68,7 @@ def create_app() -> FastAPI:
     app.include_router(health_router)
     app.include_router(resumes_router, prefix="/api")
     app.include_router(autofill_router, prefix="/api")
+    app.include_router(match_router, prefix="/api")
 
     return app
 

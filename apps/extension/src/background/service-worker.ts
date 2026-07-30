@@ -21,6 +21,9 @@ chrome.runtime.onInstalled.addListener((details) => {
   }
 });
 
+// Enable side panel to open on action click globally so it works even after reloads
+chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch(console.error);
+
 // Keep-alive ping (MV3 service workers can be killed after 30s of inactivity)
 chrome.runtime.onConnect.addListener((port) => {
   console.log("[JobSA] Port connected:", port.name);
@@ -79,11 +82,20 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       });
     return true;
   }
+
+  if (message.action === "job_match") {
+    handleJobMatch(message.payload)
+      .then(response => sendResponse(response))
+      .catch(error => {
+        console.error("[JobSA] Job Match error:", error);
+        sendResponse({ error: error.message || "Failed to analyze match" });
+      });
+    return true;
+  }
 });
 
 async function getBackendUrl(): Promise<string> {
-  const { backend_url } = await chrome.storage.local.get('backend_url');
-  return backend_url || 'https://jobsa-backend.onrender.com';
+  return 'http://localhost:8000';
 }
 
 const MAX_RETRIES = 4;
@@ -134,6 +146,39 @@ async function handleAutofill(payload: any) {
     method: "POST",
     headers,
     body: JSON.stringify(body)
+  });
+  
+  if (!response.ok) {
+    let errorDetail = response.statusText;
+    try {
+      const errorBody = await response.json();
+      if (errorBody.detail) errorDetail = errorBody.detail;
+    } catch (e) {}
+    throw new Error(`Backend Error ${response.status}: ${errorDetail}`);
+  }
+  
+  return await response.json();
+}
+
+async function handleJobMatch(payload: any) {
+  const BACKEND_URL = await getBackendUrl();
+  const { sb_auth_token } = await chrome.storage.local.get("sb_auth_token");
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    "Accept": "application/json"
+  };
+  
+  if (sb_auth_token) {
+    headers["Authorization"] = `Bearer ${sb_auth_token}`;
+  }
+  
+  const response = await fetchWithRetry(`${BACKEND_URL}/api/match`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({
+      resume_id: payload.resume_id,
+      job_description: payload.job_description
+    })
   });
   
   if (!response.ok) {
