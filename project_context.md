@@ -2,7 +2,7 @@
 
 **Target Audience:** AI Agents / Developers
 **Purpose:** Provide full context of the project architecture, stack, state, and structure without needing to read the entire codebase. This file should be read first by any agent entering the workspace.
-**Last Updated:** 2026-07-25
+**Last Updated:** 2026-07-31
 
 ## 1. Project Overview
 Jobsa is an AI-powered copilot for job applications. It includes:
@@ -18,6 +18,7 @@ Jobsa is an AI-powered copilot for job applications. It includes:
   - Switched LLM provider to Groq (Llama 3.3 70B) via LiteLLM.
   - Implemented Core Backend schemas, models, and routes (`resumes`, `knowledge`, `profile`, `applications`).
   - Added frontend TanStack Query integration.
+  - Hardened extension content scripts against iframe race conditions (e.g., Recaptcha) and MV3 Side Panel API limitations (`tab.url` stripping causing 422 errors).
   - *Current Focus:* Refining backend endpoints (e.g., fixing type checker errors), and implementing the UI dashboard pages (Resumes, Profile, Knowledge Base, Applications) to connect with the backend.
 
 ## 3. Technology Stack
@@ -42,7 +43,7 @@ jobsa/
 │   │   │   ├── content/                # Content scripts (injected into pages)
 │   │   │   │   ├── index.ts            # Main content script (runs on <all_urls>)
 │   │   │   │   └── auth-sync.ts        # Auth token sync (runs on localhost:5173)
-│   │   │   └── popup/                  # Extension popup UI (React)
+│   │   │   └── sidepanel/              # Extension side panel UI (React)
 │   │   └── dist/                       # Built extension output (load unpacked from here)
 │   │
 │   └── web-dashboard/                  # Dashboard SPA (Vite + React + TanStack Query)
