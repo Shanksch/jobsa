@@ -94,13 +94,6 @@ interface FormField {
   required: boolean;
 }
 
-interface ResumeItem {
-  id: string;
-  name: string;
-  file_name: string;
-  is_primary: boolean;
-}
-
 function extractFormSchema(): FormField[] {
   const fields: FormField[] = [];
   const elements = document.querySelectorAll('input, select, textarea');

@@ -210,7 +210,7 @@ export function SidePanel() {
     setIsSaving(true);
     setError(null);
     try {
-      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      await chrome.tabs.query({ active: true, currentWindow: true });
       const response = await new Promise<any>((resolve) => {
         chrome.runtime.sendMessage({
           action: "create_application",
