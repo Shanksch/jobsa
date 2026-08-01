@@ -16,7 +16,7 @@ export function Layout({ children }: LayoutProps) {
   const location = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
 
-  const { data: health } = useQuery({
+  const { data: health, refetch, isFetching } = useQuery({
     queryKey: ["health"],
     queryFn: fetchHealth,
     refetchInterval: 10000, // Refresh health status every 10s
@@ -72,15 +72,20 @@ export function Layout({ children }: LayoutProps) {
 
           <div className="flex items-center gap-3">
             {/* System health indicator (Premium pill) */}
-            <div className="hidden md:flex items-center gap-2 rounded-full border border-border/50 bg-card/50 px-3 py-1.5 text-xs font-medium shadow-sm backdrop-blur-md">
+            <button 
+              onClick={() => refetch()}
+              disabled={isFetching}
+              title={connected ? "System Active" : "Click to wake up backend"}
+              className="hidden md:flex items-center gap-2 rounded-full border border-border/50 bg-card/50 px-3 py-1.5 text-xs font-medium shadow-sm backdrop-blur-md cursor-pointer hover:bg-muted/50 transition-colors disabled:cursor-default"
+            >
               <span className="flex size-2 relative">
-                {connected && <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary/60 opacity-75" />}
-                <span className={cn("relative inline-flex size-2 rounded-full", connected ? "bg-primary" : "bg-destructive")} />
+                {(connected || isFetching) && <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary/60 opacity-75" />}
+                <span className={cn("relative inline-flex size-2 rounded-full", connected ? "bg-primary" : (isFetching ? "bg-amber-500" : "bg-destructive"))} />
               </span>
               <span className="text-muted-foreground text-[11px] font-semibold uppercase tracking-wider">
-                {connected ? "System Active" : "Offline"}
+                {isFetching ? "Waking Up..." : (connected ? "System Active" : "Offline")}
               </span>
-            </div>
+            </button>
 
             <div className="h-4 w-px bg-border mx-1 hidden md:block" />
 
