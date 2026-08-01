@@ -3,8 +3,9 @@ Tests for resumes API endpoints.
 """
 
 import io
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
-from unittest.mock import AsyncMock, patch, MagicMock
 from httpx import AsyncClient
 
 from app.services.resume_parser import ParsedResume
@@ -17,9 +18,9 @@ async def test_upload_resume(client: AsyncClient, test_profile: dict):
         text="Extracted text content from PDF",
         markdown="Extracted markdown content from PDF",
         sections={
-            "summary": "Sample summary", 
+            "summary": "Sample summary",
             "skills": [
-                {"name": "Python", "category": "Lang", "proficiency": "expert"}, 
+                {"name": "Python", "category": "Lang", "proficiency": "expert"},
                 {"name": "Docker", "category": "Tools", "proficiency": "expert"}
             ]
         }
@@ -29,11 +30,11 @@ async def test_upload_resume(client: AsyncClient, test_profile: dict):
          patch("app.api.routes.resumes.resume_parser_service.parse_resume", new_callable=AsyncMock) as mock_parse, \
          patch("app.api.routes.resumes.reindex_profile", new_callable=AsyncMock) as mock_reindex, \
          patch("app.api.routes.resumes.supabase.table") as mock_table:
-        
+
         mock_upload.return_value = "default_user/resumes/uuid_resume.pdf"
         mock_parse.return_value = mock_parsed
         mock_reindex.return_value = 0
-        
+
         mock_execute = MagicMock()
         # Return what the endpoint expects from insert_res.data[0]
         mock_execute.execute.return_value = MagicMock(data=[{
@@ -69,7 +70,7 @@ async def test_upload_resume(client: AsyncClient, test_profile: dict):
         assert res_data["is_primary"] is True
         assert res_data["file_name"] == "resume.pdf"
         assert res_data["parsed_sections"]["summary"] == "Sample summary"
-        
+
         mock_upload.assert_called_once()
         mock_parse.assert_called_once()
 
@@ -85,7 +86,7 @@ async def test_list_resumes_empty(client: AsyncClient, test_profile: dict):
         mock_select = MagicMock()
         mock_select.select.return_value = mock_eq
         mock_table.return_value = mock_select
-        
+
         response = await client.get("/api/resumes")
         assert response.status_code == 200
         assert response.json() == []

@@ -5,13 +5,13 @@ Extracts text/markdown from PDF/DOCX and structure-extracts
 key details (Education, Experience, Skills, Projects, Summary) using an LLM.
 """
 
-import json
 from dataclasses import dataclass
 from pathlib import Path
-import structlog
-import pymupdf4llm
-from docx import Document
+
 import instructor
+import pymupdf4llm
+import structlog
+from docx import Document
 from litellm import acompletion
 from pydantic import BaseModel, Field
 

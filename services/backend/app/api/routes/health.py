@@ -6,13 +6,12 @@ The primary round-trip proof for Phase 0:
   Dashboard       → GET /api/health → this handler → JSON response
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import APIRouter
 from pydantic import BaseModel
 
 from app.config import settings
-
 
 router = APIRouter(prefix="/api", tags=["health"])
 
@@ -36,5 +35,5 @@ async def health_check() -> HealthResponse:
     return HealthResponse(
         status="healthy",
         version=settings.app_version,
-        timestamp=datetime.now(timezone.utc).isoformat(),
+        timestamp=datetime.now(UTC).isoformat(),
     )

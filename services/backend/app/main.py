@@ -5,20 +5,20 @@ Creates the app with middleware, CORS, and routers.
 Uses lifespan context manager for startup/shutdown hooks.
 """
 
-from contextlib import asynccontextmanager
 from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
 
 import structlog
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.api.routes.autofill import router as autofill_router
+from app.api.routes.health import router as health_router
+from app.api.routes.match import router as match_router
+from app.api.routes.resumes import router as resumes_router
 from app.config import settings
 from app.core.logging import setup_logging
 from app.core.middleware import RequestIDMiddleware
-from app.api.routes.health import router as health_router
-from app.api.routes.resumes import router as resumes_router
-from app.api.routes.autofill import router as autofill_router
-from app.api.routes.match import router as match_router
 
 logger = structlog.get_logger()
 

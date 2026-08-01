@@ -5,6 +5,8 @@ All settings are loaded from environment variables (or .env file).
 This is the single source of truth for backend configuration.
 """
 
+import os
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -79,7 +81,7 @@ class Settings(BaseSettings):
 settings = Settings()
 
 # Propagate settings to environment variables for third-party libraries (LiteLLM, Supabase, etc.)
-import os
+
 if settings.groq_api_key:
     os.environ["GROQ_API_KEY"] = settings.groq_api_key
 if settings.openai_api_key:

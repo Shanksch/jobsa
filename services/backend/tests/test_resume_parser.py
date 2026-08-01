@@ -2,16 +2,18 @@
 Tests for resume parser service.
 """
 
+from unittest.mock import AsyncMock, patch
+
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+
 from app.services.resume_parser import resume_parser_service
 
 
 @pytest.mark.asyncio
 async def test_structure_resume_llm():
     """Verify that structure_resume correctly structures resume markdown text using LLM."""
-    from app.services.resume_parser import ResumeSections, SkillItem, EducationItem
-    
+    from app.services.resume_parser import EducationItem, ResumeSections, SkillItem
+
     mock_response = ResumeSections(
         contact=None,
         summary="Experienced software developer specialized in Python and cloud technologies.",

@@ -1,5 +1,7 @@
 import asyncio
+
 from app.services.resume_parser import resume_parser_service
+
 
 async def main():
     markdown = """

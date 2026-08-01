@@ -1,5 +1,6 @@
-import os
 import asyncio
+import os
+
 import asyncpg
 from dotenv import load_dotenv
 
@@ -42,16 +43,16 @@ DROP POLICY IF EXISTS "Users can insert own resume chunks" ON resume_chunks;
 DROP POLICY IF EXISTS "Users can delete own resume chunks" ON resume_chunks;
 
 -- Create RLS policies
-CREATE POLICY "Users can view own resume chunks" 
-    ON resume_chunks FOR SELECT 
+CREATE POLICY "Users can view own resume chunks"
+    ON resume_chunks FOR SELECT
     USING (auth.uid() = profile_id);
 
-CREATE POLICY "Users can insert own resume chunks" 
-    ON resume_chunks FOR INSERT 
+CREATE POLICY "Users can insert own resume chunks"
+    ON resume_chunks FOR INSERT
     WITH CHECK (auth.uid() = profile_id);
 
-CREATE POLICY "Users can delete own resume chunks" 
-    ON resume_chunks FOR DELETE 
+CREATE POLICY "Users can delete own resume chunks"
+    ON resume_chunks FOR DELETE
     USING (auth.uid() = profile_id);
 
 -- Create IVFFlat index for faster vector similarity search

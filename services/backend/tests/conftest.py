@@ -5,12 +5,11 @@ Sets up mocked dependencies (like get_current_user) for testing endpoints
 without hitting Supabase authentication.
 """
 
-import pytest
 import pytest_asyncio
-from httpx import AsyncClient, ASGITransport
+from httpx import ASGITransport, AsyncClient
 
-from app.main import app
 from app.core.auth import get_current_user
+from app.main import app
 
 DEFAULT_EMAIL = "test_user@example.com"
 DEFAULT_NAME = "Test User"
@@ -35,9 +34,9 @@ async def client(test_profile: dict):
         return test_profile
 
     app.dependency_overrides[get_current_user] = override_get_current_user
-    
+
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         yield ac
-        
+
     app.dependency_overrides.clear()

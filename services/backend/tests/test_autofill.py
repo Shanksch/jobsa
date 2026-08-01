@@ -1,13 +1,13 @@
-import json
+from unittest.mock import AsyncMock, patch
+
 import pytest
 from httpx import AsyncClient
-from unittest.mock import patch, AsyncMock
 
 
 @pytest.mark.asyncio
 async def test_autofill_endpoint(client: AsyncClient, test_profile: dict):
     """Test the autofill endpoint with a mocked LLM response."""
-    
+
     form_schema = {
         "url": "https://example.com/apply",
         "fields": [
@@ -30,7 +30,7 @@ async def test_autofill_endpoint(client: AsyncClient, test_profile: dict):
         mock_client = AsyncMock()
         mock_client.chat.completions.create.return_value = mock_response
         mock_instructor.return_value = mock_client
-        
+
         mock_retrieve.return_value = []
         response = await client.post("/api/autofill", json=form_schema)
 

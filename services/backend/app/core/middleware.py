@@ -6,13 +6,12 @@ and returns it in the X-Request-ID response header for tracing.
 """
 
 import uuid
-from collections.abc import Callable, Awaitable
+from collections.abc import Awaitable, Callable
 
 import structlog
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
-
 
 logger = structlog.get_logger()
 

@@ -1,6 +1,5 @@
-import jwt
 from fastapi import Depends, HTTPException, status
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from supabase import create_client
 
 from app.config import settings
@@ -54,5 +53,5 @@ async def get_current_user(
         }
         insert_res = supabase.table("user_profiles").insert(new_profile).execute()
         return insert_res.data[0]
-    
+
     return profiles[0]

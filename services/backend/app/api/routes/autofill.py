@@ -5,7 +5,7 @@ Autofill API endpoints.
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.core.auth import get_current_user
-from app.schemas.autofill import FormSchema, AutofillResponse
+from app.schemas.autofill import AutofillResponse, FormSchema
 from app.services.rag_engine import generate_autofill_answers
 
 router = APIRouter(prefix="/autofill", tags=["autofill"])

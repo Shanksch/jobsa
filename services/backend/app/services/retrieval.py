@@ -65,26 +65,26 @@ async def retrieve_for_form(
 
     # Sort by highest similarity first
     sorted_chunks = sorted(seen.values(), key=lambda c: c["similarity"], reverse=True)
-    
+
     # Deduplicate overlapping text (e.g. raw resume chunk vs structured chunk)
     final_chunks = []
     for chunk in sorted_chunks:
         words1 = set(chunk["chunk_text"].lower().split())
         is_duplicate = False
-        
+
         for final_chunk in final_chunks:
             words2 = set(final_chunk["chunk_text"].lower().split())
             if not words1 or not words2:
                 continue
-                
+
             intersection = len(words1 & words2)
             min_len = min(len(words1), len(words2))
-            
+
             # If 70% of the smaller chunk's words are in the larger chunk, it's a duplicate
             if min_len > 0 and (intersection / min_len) > 0.7:
                 is_duplicate = True
                 break
-                
+
         if not is_duplicate:
             final_chunks.append(chunk)
 

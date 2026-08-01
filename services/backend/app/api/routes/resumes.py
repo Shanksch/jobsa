@@ -7,16 +7,17 @@ Integrates with storage_service and resume_parser_service to parser uploads.
 
 import uuid
 from typing import Any, cast
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, status, Form
+
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from fastapi.responses import Response
 
 from app.core.auth import get_current_user, supabase
 from app.schemas.resume import ResumeListItem, ResumeResponse, ResumeUpdate
-from app.services.storage import storage_service
-from app.services.resume_parser import resume_parser_service
 from app.services.ingestion import reindex_profile
+from app.services.resume_parser import resume_parser_service
+from app.services.storage import storage_service
 
-supabase = cast(Any, supabase)
+supabase = cast("Any", supabase)
 
 router = APIRouter(prefix="/resumes", tags=["resumes"])
 
@@ -51,8 +52,8 @@ async def upload_resume(
 
     # 4. Parse content using resume_parser_service
     # Write file to a temporary location to let pymupdf4llm read it
-    import tempfile
     import os
+    import tempfile
     temp_dir = tempfile.gettempdir()
     safe_filename = file.filename.replace(" ", "_") if file.filename else "resume.pdf"
     temp_path = os.path.join(temp_dir, f"{profile['id']}_{safe_filename}")
@@ -145,7 +146,7 @@ async def upload_resume(
 def _do_import_resume_sections(profile_id: str, sections: dict):
     """Internal helper to insert parsed resume sections into the database tables."""
     from datetime import datetime
-    
+
     print("\n--- DEBUG: PARSED SECTIONS EXTRACTED ---")
     print(sections)
     print("---------------------------------------\n")
@@ -168,12 +169,12 @@ def _do_import_resume_sections(profile_id: str, sections: dict):
                     gpa_val = float(edu.get("gpa")) if edu.get("gpa") else None
                 except (ValueError, TypeError):
                     gpa_val = None
-                    
+
                 inst = edu.get("institution", "Unknown")
                 deg = edu.get("degree", "Unknown")
-                
+
                 existing = supabase.table("education").select("id").eq("profile_id", profile_id).eq("institution", inst).eq("degree", deg).execute()
-                
+
                 edu_dict = {
                     "profile_id": profile_id,
                     "institution": inst,
@@ -185,7 +186,7 @@ def _do_import_resume_sections(profile_id: str, sections: dict):
                     "description": edu.get("description"),
                     "is_current": edu.get("is_current", False)
                 }
-                
+
                 if not existing.data:
                     edu_dict["id"] = str(uuid.uuid4())
                     supabase.table("education").insert(edu_dict).execute()
@@ -200,9 +201,9 @@ def _do_import_resume_sections(profile_id: str, sections: dict):
             try:
                 comp = work.get("company", "Unknown")
                 job_title = work.get("title", "Unknown")
-                
+
                 existing = supabase.table("work_experience").select("id").eq("profile_id", profile_id).eq("company", comp).eq("title", job_title).execute()
-                
+
                 work_dict = {
                     "profile_id": profile_id,
                     "company": comp,
@@ -215,7 +216,7 @@ def _do_import_resume_sections(profile_id: str, sections: dict):
                     "technologies": work.get("technologies") or [],
                     "is_current": work.get("is_current", False)
                 }
-                
+
                 if not existing.data:
                     work_dict["id"] = str(uuid.uuid4())
                     supabase.table("work_experience").insert(work_dict).execute()
@@ -229,9 +230,9 @@ def _do_import_resume_sections(profile_id: str, sections: dict):
         for proj in sections["projects"]:
             try:
                 proj_name = proj.get("name", "Unknown")
-                
+
                 existing = supabase.table("projects").select("id").eq("profile_id", profile_id).eq("name", proj_name).execute()
-                
+
                 proj_dict = {
                     "profile_id": profile_id,
                     "name": proj_name,
@@ -242,7 +243,7 @@ def _do_import_resume_sections(profile_id: str, sections: dict):
                     "start_date": parse_date(proj.get("start_date")),
                     "end_date": parse_date(proj.get("end_date"))
                 }
-                
+
                 if not existing.data:
                     proj_dict["id"] = str(uuid.uuid4())
                     supabase.table("projects").insert(proj_dict).execute()
@@ -259,9 +260,9 @@ def _do_import_resume_sections(profile_id: str, sections: dict):
                     yoe = float(skill.get("years_experience")) if skill.get("years_experience") else None
                 except (ValueError, TypeError):
                     yoe = None
-                    
+
                 skill_name = skill.get("name", "Unknown").strip()
-                
+
                 # 1. Fetch or create global skill
                 skill_res = supabase.table("skills").select("id").eq("name", skill_name).execute()
                 if skill_res.data:
@@ -269,14 +270,14 @@ def _do_import_resume_sections(profile_id: str, sections: dict):
                 else:
                     insert_res = supabase.table("skills").insert({
                         "id": str(uuid.uuid4()),
-                        "name": skill_name, 
+                        "name": skill_name,
                         "category": skill.get("category")
                     }).execute()
                     if insert_res.data:
                         skill_id = insert_res.data[0]["id"]
                     else:
                         continue
-                        
+
                 # 2. Link skill to user profile
                 user_skill_res = supabase.table("user_skills").select("id").eq("profile_id", profile_id).eq("skill_id", skill_id).execute()
                 if not user_skill_res.data:
@@ -300,9 +301,9 @@ def _do_import_resume_sections(profile_id: str, sections: dict):
         for cert in sections["certifications"]:
             try:
                 cert_name = cert.get("name", "Unknown")
-                
+
                 existing = supabase.table("certifications").select("id").eq("profile_id", profile_id).eq("name", cert_name).execute()
-                
+
                 cert_dict = {
                     "profile_id": profile_id,
                     "name": cert_name,
@@ -312,7 +313,7 @@ def _do_import_resume_sections(profile_id: str, sections: dict):
                     "credential_id": cert.get("credential_id"),
                     "credential_url": cert.get("credential_url")
                 }
-                
+
                 if not existing.data:
                     cert_dict["id"] = str(uuid.uuid4())
                     supabase.table("certifications").insert(cert_dict).execute()
@@ -346,7 +347,7 @@ async def get_resume(
 ) -> dict:
     """Retrieve details of a specific resume."""
     res = supabase.table("resumes").select("*").eq("id", str(resume_id)).eq("profile_id", profile["id"]).execute()
-    
+
     if not res.data:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -363,7 +364,7 @@ async def update_resume(
 ) -> dict:
     """Update resume metadata (name, is_primary)."""
     res = supabase.table("resumes").select("*").eq("id", str(resume_id)).eq("profile_id", profile["id"]).execute()
-    
+
     if not res.data:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -439,9 +440,8 @@ async def import_resume_to_knowledge_base(
     profile: dict = Depends(get_current_user),
 ) -> dict:
     """Import parsed resume sections into the knowledge base models."""
-    from datetime import datetime, date
     from app.core.auth import supabase
-    
+
     profile_id = profile["id"]
 
     res = supabase.table("resumes").select("*").eq("id", str(resume_id)).eq("profile_id", profile_id).execute()

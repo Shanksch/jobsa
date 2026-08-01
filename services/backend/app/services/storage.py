@@ -28,7 +28,7 @@ class StorageService:
                     settings.supabase_url,
                     settings.supabase_service_role_key or settings.supabase_anon_key,
                 )
-                
+
                 try:
                     # Ensure bucket exists
                     buckets = self._supabase_client.storage.list_buckets()
@@ -36,7 +36,7 @@ class StorageService:
                         self._supabase_client.storage.create_bucket(settings.supabase_storage_bucket, options={"public": False})
                 except Exception as e:
                     logger.warning("supabase_bucket_init_failed", error=str(e))
-                    
+
                 logger.info("storage_initialized", backend="supabase")
             except Exception as e:
                 logger.warning("supabase_storage_init_failed", error=str(e))
