@@ -21,8 +21,14 @@ chrome.runtime.onInstalled.addListener((details) => {
   }
 });
 
-// Enable side panel to open on action click globally so it works even after reloads
-chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch(console.error);
+// Toggle the floating widget when the toolbar icon is clicked
+chrome.action.onClicked.addListener(async (tab) => {
+  if (tab.id) {
+    chrome.tabs.sendMessage(tab.id, { action: 'TOGGLE_WIDGET' }).catch(() => {
+      // Content script may not be loaded yet on some pages (e.g. chrome://)
+    });
+  }
+});
 
 // Keep-alive ping (MV3 service workers can be killed after 30s of inactivity)
 chrome.runtime.onConnect.addListener((port) => {
@@ -98,8 +104,8 @@ async function getBackendUrl(): Promise<string> {
   return 'https://jobsa-backend.onrender.com';
 }
 
-const MAX_RETRIES = 4;
-const BASE_DELAY_MS = 2000;
+const MAX_RETRIES = 7;
+const BASE_DELAY_MS = 1000;
 
 async function fetchWithRetry(url: string, options: RequestInit): Promise<Response> {
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
@@ -203,9 +209,10 @@ async function handleListResumes() {
   const headers: Record<string, string> = {
     "Accept": "application/json"
   };
-  if (sb_auth_token) {
-    headers["Authorization"] = `Bearer ${sb_auth_token}`;
+  if (!sb_auth_token) {
+    throw new Error("Auth token missing. Please open or refresh the JobSA dashboard to sync your account.");
   }
+  headers["Authorization"] = `Bearer ${sb_auth_token}`;
   const response = await fetchWithRetry(`${BACKEND_URL}/api/resumes`, {
     method: "GET",
     headers

@@ -67,6 +67,7 @@ if (shouldIgnore) {
         if (fillResults.length > 0) {
           chrome.runtime.sendMessage({ action: "REPORT_INJECT_RESULTS", results: fillResults });
         }
+        sendResponse({ success: true });
       })();
       return true;
     }
