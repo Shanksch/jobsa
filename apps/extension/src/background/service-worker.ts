@@ -153,7 +153,9 @@ async function handleAutofill(payload: any) {
     try {
       const errorBody = await response.json();
       if (errorBody.detail) errorDetail = errorBody.detail;
-    } catch (e) {}
+    } catch { 
+      // ignore 
+    }
     throw new Error(`Backend Error ${response.status}: ${errorDetail}`);
   }
   
@@ -186,7 +188,9 @@ async function handleJobMatch(payload: any) {
     try {
       const errorBody = await response.json();
       if (errorBody.detail) errorDetail = errorBody.detail;
-    } catch (e) {}
+    } catch { 
+      // ignore 
+    }
     throw new Error(`Backend Error ${response.status}: ${errorDetail}`);
   }
   
