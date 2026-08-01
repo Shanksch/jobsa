@@ -54,6 +54,7 @@ async def upload_resume(
     # Write file to a temporary location to let pymupdf4llm read it
     import os
     import tempfile
+
     temp_dir = tempfile.gettempdir()
     safe_filename = file.filename.replace(" ", "_") if file.filename else "resume.pdf"
     temp_path = os.path.join(temp_dir, f"{profile['id']}_{safe_filename}")
@@ -75,7 +76,9 @@ async def upload_resume(
 
     # 5. Handle is_primary constraint (if true, remove primary flag from others)
     if is_primary:
-        supabase.table("resumes").update({"is_primary": False}).eq("profile_id", profile["id"]).execute()
+        supabase.table("resumes").update({"is_primary": False}).eq(
+            "profile_id", profile["id"]
+        ).execute()
 
     # 6. Create database record
     new_resume = {
@@ -128,7 +131,9 @@ async def upload_resume(
                 profile_update[profile_key] = parsed_val
 
         # Also update summary if it's the default placeholder
-        if sections.get("summary") and (not profile.get("summary") or profile.get("summary") == "Career profile summary"):
+        if sections.get("summary") and (
+            not profile.get("summary") or profile.get("summary") == "Career profile summary"
+        ):
             profile_update["summary"] = sections["summary"]
 
         if profile_update:
@@ -173,7 +178,14 @@ def _do_import_resume_sections(profile_id: str, sections: dict):
                 inst = edu.get("institution", "Unknown")
                 deg = edu.get("degree", "Unknown")
 
-                existing = supabase.table("education").select("id").eq("profile_id", profile_id).eq("institution", inst).eq("degree", deg).execute()
+                existing = (
+                    supabase.table("education")
+                    .select("id")
+                    .eq("profile_id", profile_id)
+                    .eq("institution", inst)
+                    .eq("degree", deg)
+                    .execute()
+                )
 
                 edu_dict = {
                     "profile_id": profile_id,
@@ -184,14 +196,16 @@ def _do_import_resume_sections(profile_id: str, sections: dict):
                     "end_date": parse_date(edu.get("end_date")),
                     "gpa": gpa_val,
                     "description": edu.get("description"),
-                    "is_current": edu.get("is_current", False)
+                    "is_current": edu.get("is_current", False),
                 }
 
                 if not existing.data:
                     edu_dict["id"] = str(uuid.uuid4())
                     supabase.table("education").insert(edu_dict).execute()
                 else:
-                    supabase.table("education").update(edu_dict).eq("id", existing.data[0]["id"]).execute()
+                    supabase.table("education").update(edu_dict).eq(
+                        "id", existing.data[0]["id"]
+                    ).execute()
             except Exception as e:
                 print(f"Error inserting education: {e}")
 
@@ -202,7 +216,14 @@ def _do_import_resume_sections(profile_id: str, sections: dict):
                 comp = work.get("company", "Unknown")
                 job_title = work.get("title", "Unknown")
 
-                existing = supabase.table("work_experience").select("id").eq("profile_id", profile_id).eq("company", comp).eq("title", job_title).execute()
+                existing = (
+                    supabase.table("work_experience")
+                    .select("id")
+                    .eq("profile_id", profile_id)
+                    .eq("company", comp)
+                    .eq("title", job_title)
+                    .execute()
+                )
 
                 work_dict = {
                     "profile_id": profile_id,
@@ -214,14 +235,16 @@ def _do_import_resume_sections(profile_id: str, sections: dict):
                     "description": work.get("description"),
                     "highlights": work.get("highlights") or [],
                     "technologies": work.get("technologies") or [],
-                    "is_current": work.get("is_current", False)
+                    "is_current": work.get("is_current", False),
                 }
 
                 if not existing.data:
                     work_dict["id"] = str(uuid.uuid4())
                     supabase.table("work_experience").insert(work_dict).execute()
                 else:
-                    supabase.table("work_experience").update(work_dict).eq("id", existing.data[0]["id"]).execute()
+                    supabase.table("work_experience").update(work_dict).eq(
+                        "id", existing.data[0]["id"]
+                    ).execute()
             except Exception as e:
                 print(f"Error inserting work experience: {e}")
 
@@ -231,7 +254,13 @@ def _do_import_resume_sections(profile_id: str, sections: dict):
             try:
                 proj_name = proj.get("name", "Unknown")
 
-                existing = supabase.table("projects").select("id").eq("profile_id", profile_id).eq("name", proj_name).execute()
+                existing = (
+                    supabase.table("projects")
+                    .select("id")
+                    .eq("profile_id", profile_id)
+                    .eq("name", proj_name)
+                    .execute()
+                )
 
                 proj_dict = {
                     "profile_id": profile_id,
@@ -241,14 +270,16 @@ def _do_import_resume_sections(profile_id: str, sections: dict):
                     "technologies": proj.get("technologies") or [],
                     "highlights": proj.get("highlights") or [],
                     "start_date": parse_date(proj.get("start_date")),
-                    "end_date": parse_date(proj.get("end_date"))
+                    "end_date": parse_date(proj.get("end_date")),
                 }
 
                 if not existing.data:
                     proj_dict["id"] = str(uuid.uuid4())
                     supabase.table("projects").insert(proj_dict).execute()
                 else:
-                    supabase.table("projects").update(proj_dict).eq("id", existing.data[0]["id"]).execute()
+                    supabase.table("projects").update(proj_dict).eq(
+                        "id", existing.data[0]["id"]
+                    ).execute()
             except Exception as e:
                 print(f"Error inserting projects: {e}")
 
@@ -257,7 +288,11 @@ def _do_import_resume_sections(profile_id: str, sections: dict):
         for skill in sections["skills"]:
             try:
                 try:
-                    yoe = float(skill.get("years_experience")) if skill.get("years_experience") else None
+                    yoe = (
+                        float(skill.get("years_experience"))
+                        if skill.get("years_experience")
+                        else None
+                    )
                 except (ValueError, TypeError):
                     yoe = None
 
@@ -268,31 +303,44 @@ def _do_import_resume_sections(profile_id: str, sections: dict):
                 if skill_res.data:
                     skill_id = skill_res.data[0]["id"]
                 else:
-                    insert_res = supabase.table("skills").insert({
-                        "id": str(uuid.uuid4()),
-                        "name": skill_name,
-                        "category": skill.get("category")
-                    }).execute()
+                    insert_res = (
+                        supabase.table("skills")
+                        .insert(
+                            {
+                                "id": str(uuid.uuid4()),
+                                "name": skill_name,
+                                "category": skill.get("category"),
+                            }
+                        )
+                        .execute()
+                    )
                     if insert_res.data:
                         skill_id = insert_res.data[0]["id"]
                     else:
                         continue
 
                 # 2. Link skill to user profile
-                user_skill_res = supabase.table("user_skills").select("id").eq("profile_id", profile_id).eq("skill_id", skill_id).execute()
+                user_skill_res = (
+                    supabase.table("user_skills")
+                    .select("id")
+                    .eq("profile_id", profile_id)
+                    .eq("skill_id", skill_id)
+                    .execute()
+                )
                 if not user_skill_res.data:
-                    supabase.table("user_skills").insert({
-                        "id": str(uuid.uuid4()),
-                        "profile_id": profile_id,
-                        "skill_id": skill_id,
-                        "proficiency": skill.get("proficiency"),
-                        "years_experience": yoe
-                    }).execute()
+                    supabase.table("user_skills").insert(
+                        {
+                            "id": str(uuid.uuid4()),
+                            "profile_id": profile_id,
+                            "skill_id": skill_id,
+                            "proficiency": skill.get("proficiency"),
+                            "years_experience": yoe,
+                        }
+                    ).execute()
                 else:
-                    supabase.table("user_skills").update({
-                        "proficiency": skill.get("proficiency"),
-                        "years_experience": yoe
-                    }).eq("id", user_skill_res.data[0]["id"]).execute()
+                    supabase.table("user_skills").update(
+                        {"proficiency": skill.get("proficiency"), "years_experience": yoe}
+                    ).eq("id", user_skill_res.data[0]["id"]).execute()
             except Exception as e:
                 print(f"Error inserting skills: {e}")
 
@@ -302,7 +350,13 @@ def _do_import_resume_sections(profile_id: str, sections: dict):
             try:
                 cert_name = cert.get("name", "Unknown")
 
-                existing = supabase.table("certifications").select("id").eq("profile_id", profile_id).eq("name", cert_name).execute()
+                existing = (
+                    supabase.table("certifications")
+                    .select("id")
+                    .eq("profile_id", profile_id)
+                    .eq("name", cert_name)
+                    .execute()
+                )
 
                 cert_dict = {
                     "profile_id": profile_id,
@@ -311,24 +365,27 @@ def _do_import_resume_sections(profile_id: str, sections: dict):
                     "issue_date": parse_date(cert.get("issue_date")),
                     "expiry_date": parse_date(cert.get("expiry_date")),
                     "credential_id": cert.get("credential_id"),
-                    "credential_url": cert.get("credential_url")
+                    "credential_url": cert.get("credential_url"),
                 }
 
                 if not existing.data:
                     cert_dict["id"] = str(uuid.uuid4())
                     supabase.table("certifications").insert(cert_dict).execute()
                 else:
-                    supabase.table("certifications").update(cert_dict).eq("id", existing.data[0]["id"]).execute()
+                    supabase.table("certifications").update(cert_dict).eq(
+                        "id", existing.data[0]["id"]
+                    ).execute()
             except Exception as e:
                 print(f"Error inserting certifications: {e}")
 
     # Summary
     if sections.get("summary"):
         try:
-            supabase.table("user_profiles").update({"summary": sections["summary"]}).eq("id", profile_id).execute()
+            supabase.table("user_profiles").update({"summary": sections["summary"]}).eq(
+                "id", profile_id
+            ).execute()
         except Exception as e:
             print(f"Error updating summary: {e}")
-
 
 
 @router.get("", response_model=list[ResumeListItem])
@@ -346,7 +403,13 @@ async def get_resume(
     profile: dict = Depends(get_current_user),
 ) -> dict:
     """Retrieve details of a specific resume."""
-    res = supabase.table("resumes").select("*").eq("id", str(resume_id)).eq("profile_id", profile["id"]).execute()
+    res = (
+        supabase.table("resumes")
+        .select("*")
+        .eq("id", str(resume_id))
+        .eq("profile_id", profile["id"])
+        .execute()
+    )
 
     if not res.data:
         raise HTTPException(
@@ -363,7 +426,13 @@ async def update_resume(
     profile: dict = Depends(get_current_user),
 ) -> dict:
     """Update resume metadata (name, is_primary)."""
-    res = supabase.table("resumes").select("*").eq("id", str(resume_id)).eq("profile_id", profile["id"]).execute()
+    res = (
+        supabase.table("resumes")
+        .select("*")
+        .eq("id", str(resume_id))
+        .eq("profile_id", profile["id"])
+        .execute()
+    )
 
     if not res.data:
         raise HTTPException(
@@ -375,10 +444,14 @@ async def update_resume(
 
     if update_data.get("is_primary"):
         # Reset other primary badges
-        supabase.table("resumes").update({"is_primary": False}).eq("profile_id", profile["id"]).execute()
+        supabase.table("resumes").update({"is_primary": False}).eq(
+            "profile_id", profile["id"]
+        ).execute()
 
     if update_data:
-        update_res = supabase.table("resumes").update(update_data).eq("id", str(resume_id)).execute()
+        update_res = (
+            supabase.table("resumes").update(update_data).eq("id", str(resume_id)).execute()
+        )
         return update_res.data[0]
     return res.data[0]
 
@@ -389,7 +462,13 @@ async def delete_resume(
     profile: dict = Depends(get_current_user),
 ) -> None:
     """Delete a resume from the database and storage."""
-    res = supabase.table("resumes").select("*").eq("id", str(resume_id)).eq("profile_id", profile["id"]).execute()
+    res = (
+        supabase.table("resumes")
+        .select("*")
+        .eq("id", str(resume_id))
+        .eq("profile_id", profile["id"])
+        .execute()
+    )
 
     if not res.data:
         raise HTTPException(
@@ -403,6 +482,7 @@ async def delete_resume(
         await storage_service.delete(resume["storage_path"])
     except Exception as e:
         import structlog
+
         logger = structlog.get_logger()
         logger.warning("storage_delete_failed", path=resume["storage_path"], error=str(e))
 
@@ -417,7 +497,13 @@ async def download_resume(
     profile: dict = Depends(get_current_user),
 ) -> Response:
     """Download the original uploaded resume file."""
-    res = supabase.table("resumes").select("*").eq("id", str(resume_id)).eq("profile_id", profile["id"]).execute()
+    res = (
+        supabase.table("resumes")
+        .select("*")
+        .eq("id", str(resume_id))
+        .eq("profile_id", profile["id"])
+        .execute()
+    )
 
     if not res.data:
         raise HTTPException(
@@ -444,7 +530,13 @@ async def import_resume_to_knowledge_base(
 
     profile_id = profile["id"]
 
-    res = supabase.table("resumes").select("*").eq("id", str(resume_id)).eq("profile_id", profile_id).execute()
+    res = (
+        supabase.table("resumes")
+        .select("*")
+        .eq("id", str(resume_id))
+        .eq("profile_id", profile_id)
+        .execute()
+    )
     resume = res.data[0] if res.data else None
 
     if not resume or not resume.get("parsed_sections"):

@@ -14,6 +14,7 @@ import httpx
 EMBEDDING_API_URL = "https://api-inference.huggingface.co/pipeline/feature-extraction/sentence-transformers/all-MiniLM-L6-v2"
 EMBEDDING_DIM = 384
 
+
 async def embed_texts(texts: list[str]) -> list[list[float]]:
     """
     Embed a batch of strings using the Hugging Face Free Inference API.
@@ -33,17 +34,14 @@ async def embed_texts(texts: list[str]) -> list[list[float]]:
         for attempt in range(max_retries):
             try:
                 response = await client.post(
-                    EMBEDDING_API_URL,
-                    headers=headers,
-                    json={"inputs": texts},
-                    timeout=30.0
+                    EMBEDDING_API_URL, headers=headers, json={"inputs": texts}, timeout=30.0
                 )
             except httpx.RequestError as exc:
                 print(f"Embedding API request error: {exc}")
                 if attempt < max_retries - 1:
                     await asyncio.sleep(2.0)
                     continue
-                return [] # Gracefully fail so autofill can continue with base profile
+                return []  # Gracefully fail so autofill can continue with base profile
 
             if response.status_code == 200:
                 result = response.json()
@@ -63,9 +61,10 @@ async def embed_texts(texts: list[str]) -> list[list[float]]:
                 await asyncio.sleep(wait_time)
             else:
                 print(f"Embedding API failed with status {response.status_code}: {response.text}")
-                return [] # Gracefully fail
+                return []  # Gracefully fail
 
-        return [] # Gracefully fail if max retries exceeded
+        return []  # Gracefully fail if max retries exceeded
+
 
 async def embed_text(text: str) -> list[float]:
     """Embed a single string."""

@@ -29,10 +29,30 @@ class AutofillResponse(BaseModel):
         description="A mapping of field IDs to their generated string answers."
     )
 
+
 class JobMatchRequest(BaseModel):
     resume_id: str
     job_description: str
 
+
+class CategoryScores(BaseModel):
+    required_skills: int
+    experience_seniority: int
+    domain_relevance: int
+    nice_to_have_skills: int
+    education_certifications: int
+    career_trajectory: int
+
+
 class JobMatchResponse(BaseModel):
-    score: int = Field(description="Match score from 0 to 100")
-    justification: str = Field(description="Brief justification for the score (2-3 sentences max)")
+    overall_score: int
+    verdict: str = Field(
+        description="Exceptional Match | Strong Match | Moderate Match | Weak Match | Not Qualified"
+    )
+    category_scores: CategoryScores
+    matched_requirements: list[str]
+    missing_requirements: list[str]
+    inferred_transferable_skills: list[str]
+    red_flags: list[str]
+    confidence: str = Field(description="High | Medium | Low")
+    rationale: str

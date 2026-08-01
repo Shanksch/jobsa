@@ -10,7 +10,7 @@ would only lose context for no benefit. See ingestion.py.
 
 import re
 
-DEFAULT_CHUNK_SIZE = 800   # characters, not tokens — plenty for resume-length text
+DEFAULT_CHUNK_SIZE = 800  # characters, not tokens — plenty for resume-length text
 DEFAULT_OVERLAP = 150
 
 
@@ -52,7 +52,7 @@ def chunk_text(
             # A single paragraph longer than chunk_size — hard-split with overlap.
             step = chunk_size - overlap
             for i in range(0, len(para), step):
-                chunks.append(para[i:i + chunk_size])
+                chunks.append(para[i : i + chunk_size])
 
     if buffer:
         chunks.append(buffer)

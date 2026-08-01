@@ -26,7 +26,9 @@ Experienced software engineer with 5 years in Python and React.
 """
     result = await resume_parser_service.structure_resume(markdown)
     import json
+
     print(json.dumps(result, indent=2))
+
 
 if __name__ == "__main__":
     asyncio.run(main())

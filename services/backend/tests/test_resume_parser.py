@@ -18,8 +18,15 @@ async def test_structure_resume_llm():
         contact=None,
         summary="Experienced software developer specialized in Python and cloud technologies.",
         skills=[
-            SkillItem(name="Python", category="Programming Languages", proficiency="expert", years_experience=5.0),
-            SkillItem(name="Docker", category="Tools", proficiency="intermediate", years_experience=2.0)
+            SkillItem(
+                name="Python",
+                category="Programming Languages",
+                proficiency="expert",
+                years_experience=5.0,
+            ),
+            SkillItem(
+                name="Docker", category="Tools", proficiency="intermediate", years_experience=2.0
+            ),
         ],
         education=[
             EducationItem(
@@ -30,9 +37,9 @@ async def test_structure_resume_llm():
                 end_date="2022-06-15",
                 gpa=3.9,
                 description=None,
-                is_current=False
+                is_current=False,
             )
-        ]
+        ],
     )
 
     with patch("app.services.resume_parser.instructor.from_litellm") as mock_instructor:
@@ -43,7 +50,10 @@ async def test_structure_resume_llm():
         markdown_content = "This is raw markdown resume content."
         result = await resume_parser_service.structure_resume(markdown_content)
 
-        assert result["summary"] == "Experienced software developer specialized in Python and cloud technologies."
+        assert (
+            result["summary"]
+            == "Experienced software developer specialized in Python and cloud technologies."
+        )
         assert len(result["skills"]) == 2
         assert result["skills"][0]["name"] == "Python"
         assert result["education"][0]["institution"] == "Stanford University"

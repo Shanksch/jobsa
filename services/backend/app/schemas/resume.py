@@ -10,12 +10,14 @@ from pydantic import BaseModel, Field
 
 class ResumeUpdate(BaseModel):
     """Schema for updating resume metadata."""
+
     name: str | None = Field(None, min_length=1, max_length=200)
     is_primary: bool | None = None
 
 
 class ResumeListItem(BaseModel):
     """Compact resume info for list views."""
+
     id: uuid.UUID
     name: str
     file_name: str
@@ -29,6 +31,7 @@ class ResumeListItem(BaseModel):
 
 class ResumeResponse(BaseModel):
     """Full resume details including parsed content."""
+
     id: uuid.UUID
     profile_id: uuid.UUID
     name: str

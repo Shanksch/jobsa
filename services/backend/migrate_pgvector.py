@@ -93,6 +93,7 @@ END;
 $$;
 """
 
+
 async def run_migration():
     print(f"Connecting to {DATABASE_URL.split('@')[-1]}...")
     conn = await asyncpg.connect(DATABASE_URL)
@@ -102,6 +103,7 @@ async def run_migration():
         print("Migration applied successfully!")
     finally:
         await conn.close()
+
 
 if __name__ == "__main__":
     asyncio.run(run_migration())

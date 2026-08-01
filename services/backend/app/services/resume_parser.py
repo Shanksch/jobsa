@@ -26,11 +26,13 @@ class ParsedResume:
     markdown: str
     sections: dict
 
+
 class SkillItem(BaseModel):
     name: str
     category: str
     proficiency: str
     years_experience: float | None = None
+
 
 class EducationItem(BaseModel):
     institution: str
@@ -41,6 +43,7 @@ class EducationItem(BaseModel):
     gpa: float | None = None
     description: str | None = None
     is_current: bool = False
+
 
 class WorkExperienceItem(BaseModel):
     company: str
@@ -53,6 +56,7 @@ class WorkExperienceItem(BaseModel):
     technologies: list[str] = Field(default_factory=list)
     is_current: bool = False
 
+
 class ProjectItem(BaseModel):
     name: str
     description: str
@@ -62,6 +66,7 @@ class ProjectItem(BaseModel):
     start_date: str | None = None
     end_date: str | None = None
 
+
 class CertificationItem(BaseModel):
     name: str
     issuer: str
@@ -69,6 +74,7 @@ class CertificationItem(BaseModel):
     expiry_date: str | None = None
     credential_id: str | None = None
     credential_url: str | None = None
+
 
 class ContactInfo(BaseModel):
     full_name: str | None = None
@@ -78,6 +84,7 @@ class ContactInfo(BaseModel):
     linkedin_url: str | None = None
     github_url: str | None = None
     portfolio_url: str | None = None
+
 
 class ResumeSections(BaseModel):
     contact: ContactInfo | None = None
@@ -123,7 +130,9 @@ class ResumeParserService:
 
     async def structure_resume(self, markdown_content: str) -> dict:
         """Use LiteLLM and instructor to extract structured fields from the markdown resume content."""
-        logger.info("structuring_resume_llm", provider=settings.llm_provider, model=settings.llm_model)
+        logger.info(
+            "structuring_resume_llm", provider=settings.llm_provider, model=settings.llm_model
+        )
 
         prompt = f"""
 You are an expert AI Resume Parser. Your job is to extract structured information from the markdown resume content below.
@@ -149,12 +158,15 @@ Resume content to parse:
             response_model: ResumeSections = await client.chat.completions.create(
                 model=settings.litellm_model,
                 messages=[
-                    {"role": "system", "content": "You are a precise extraction engine. You must output a JSON object matching the requested schema. Return ONLY valid JSON."},
-                    {"role": "user", "content": prompt}
+                    {
+                        "role": "system",
+                        "content": "You are a precise extraction engine. You must output a JSON object matching the requested schema. Return ONLY valid JSON.",
+                    },
+                    {"role": "user", "content": prompt},
                 ],
                 response_model=ResumeSections,
                 temperature=0.0,
-                **kwargs
+                **kwargs,
             )
 
             # Return as dictionary
@@ -180,11 +192,7 @@ Resume content to parse:
         print(markdown[:500])
         print("-----------------------------------------\n")
 
-        return ParsedResume(
-            text=text,
-            markdown=markdown,
-            sections=structured_sections
-        )
+        return ParsedResume(text=text, markdown=markdown, sections=structured_sections)
 
 
 resume_parser_service = ResumeParserService()

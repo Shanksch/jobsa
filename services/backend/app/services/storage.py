@@ -24,6 +24,7 @@ class StorageService:
         if settings.supabase_configured:
             try:
                 from supabase import create_client
+
                 self._supabase_client = create_client(
                     settings.supabase_url,
                     settings.supabase_service_role_key or settings.supabase_anon_key,
@@ -33,7 +34,9 @@ class StorageService:
                     # Ensure bucket exists
                     buckets = self._supabase_client.storage.list_buckets()
                     if settings.supabase_storage_bucket not in [b.name for b in buckets]:
-                        self._supabase_client.storage.create_bucket(settings.supabase_storage_bucket, options={"public": False})
+                        self._supabase_client.storage.create_bucket(
+                            settings.supabase_storage_bucket, options={"public": False}
+                        )
                 except Exception as e:
                     logger.warning("supabase_bucket_init_failed", error=str(e))
 

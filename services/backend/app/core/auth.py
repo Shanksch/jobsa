@@ -13,6 +13,7 @@ if settings.supabase_configured:
         settings.supabase_service_role_key or settings.supabase_anon_key,
     )
 
+
 async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
 ) -> dict:
@@ -36,7 +37,7 @@ async def get_current_user(
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=f"Could not validate credentials: {str(e)}"
+            detail=f"Could not validate credentials: {str(e)}",
         )
 
     # Find profile in Supabase

@@ -92,4 +92,3 @@ if settings.supabase_anon_key:
     os.environ["SUPABASE_ANON_KEY"] = settings.supabase_anon_key
 if settings.huggingface_api_key:
     os.environ["HUGGINGFACE_API_KEY"] = settings.huggingface_api_key
-
