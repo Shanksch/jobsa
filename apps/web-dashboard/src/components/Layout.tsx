@@ -1,10 +1,9 @@
 import * as React from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 import { Sidebar } from "./Sidebar.js";
 import { fetchHealth } from "../lib/api.js";
 import { useQuery } from "@tanstack/react-query";
 import { Toaster, cn } from "@jobsa/ui";
-import { supabase } from "../lib/supabase.js";
 import { Menu, Moon, Sun } from "lucide-react";
 import { MobileNav } from "./MobileNav.js";
 import { motion } from "framer-motion";
@@ -14,7 +13,6 @@ interface LayoutProps {
 }
 
 export function Layout({ children }: LayoutProps) {
-  const navigate = useNavigate();
   const location = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
 

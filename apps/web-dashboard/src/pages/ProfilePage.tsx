@@ -2,13 +2,12 @@ import { useForm, useFieldArray } from "react-hook-form";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
-import { Plus, Trash2, UserCircle2 } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 import { motion } from "framer-motion";
 import {
   Input,
   Textarea,
   Button,
-  Separator,
   Skeleton
 } from "@jobsa/ui";
 import { profileSchema } from "@jobsa/shared/schemas";

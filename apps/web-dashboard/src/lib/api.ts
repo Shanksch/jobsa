@@ -26,12 +26,6 @@ export class BackendWakingUpError extends Error {
   }
 }
 
-function isRetriableError(error: unknown): boolean {
-  // Network failure (backend is down / cold starting)
-  if (error instanceof TypeError && error.message === 'Failed to fetch') return true;
-  return false;
-}
-
 function isRetriableStatus(status: number): boolean {
   // 502 Bad Gateway, 503 Service Unavailable, 504 Gateway Timeout
   // These are returned by Render when the backend is still spinning up

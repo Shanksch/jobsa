@@ -134,13 +134,23 @@ export function SidePanel() {
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
       if (!tab?.id) throw new Error("No active tab");
 
-      // Extract form
-      const schemaResponse = await new Promise<any>((resolve) => {
-        chrome.tabs.sendMessage(tab.id!, { action: "GET_FORM_SCHEMA" }, resolve);
-      });
+      // 2. Extract schema from ALL frames using an aggregation listener
+      const allFields: any[] = [];
+      const schemaListener = (msg: any, sender: chrome.runtime.MessageSender) => {
+        if (msg.action === "REPORT_FORM_SCHEMA" && sender.tab?.id === tab.id) {
+          allFields.push(...msg.fields);
+        }
+      };
+      chrome.runtime.onMessage.addListener(schemaListener);
+      
+      chrome.tabs.sendMessage(tab.id, { action: "GET_FORM_SCHEMA" });
+      await new Promise(resolve => setTimeout(resolve, 500));
+      chrome.runtime.onMessage.removeListener(schemaListener);
 
-      if (!schemaResponse?.fields || schemaResponse.fields.length === 0) {
-        throw new Error("No form fields found");
+      const schemaResponse = { fields: allFields };
+
+      if (!schemaResponse.fields || schemaResponse.fields.length === 0) {
+        throw new Error("No form fields detected on this page.");
       }
 
       setAutofillProgress("Thinking (JobSA AI)...");
@@ -157,15 +167,24 @@ export function SidePanel() {
 
       setAutofillProgress("Injecting answers...");
 
-      // Inject back to page
-      const injectResponse = await new Promise<any>((resolve) => {
-        chrome.tabs.sendMessage(tab.id!, { 
-          action: "INJECT_ANSWERS", 
-          answers: fillResponse.answers,
-          fields: schemaResponse.fields
-        }, resolve);
+      // 4. Inject answers into ALL frames using an aggregation listener
+      const allResults: any[] = [];
+      const injectListener = (msg: any, sender: chrome.runtime.MessageSender) => {
+        if (msg.action === "REPORT_INJECT_RESULTS" && sender.tab?.id === tab.id) {
+          allResults.push(...msg.results);
+        }
+      };
+      chrome.runtime.onMessage.addListener(injectListener);
+      
+      chrome.tabs.sendMessage(tab.id, { 
+        action: "INJECT_ANSWERS", 
+        answers: fillResponse.answers,
+        fields: schemaResponse.fields 
       });
+      await new Promise(resolve => setTimeout(resolve, 500));
+      chrome.runtime.onMessage.removeListener(injectListener);
 
+      const injectResponse = { results: allResults };
       setResults(injectResponse.results);
       setGeneratedAnswers(fillResponse.answers);
       setIsSaved(false); // Reset saved state for new autofills

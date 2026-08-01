@@ -46,9 +46,7 @@ if (shouldIgnore) {
     if (message.action === "GET_FORM_SCHEMA") {
       const fields = extractFormSchema();
       if (fields.length > 0) {
-        sendResponse({ fields });
-      } else if (window === window.top) {
-        setTimeout(() => sendResponse({ fields }), 500);
+        chrome.runtime.sendMessage({ action: "REPORT_FORM_SCHEMA", fields });
       }
       return true;
     }
@@ -64,12 +62,12 @@ if (shouldIgnore) {
     }
 
     if (message.action === "INJECT_ANSWERS") {
-      const fillResults = injectAnswers(message.answers, message.fields);
-      if (fillResults.length > 0) {
-        sendResponse({ results: fillResults });
-      } else if (window === window.top) {
-        setTimeout(() => sendResponse({ results: fillResults }), 500);
-      }
+      (async () => {
+        const fillResults = await injectAnswers(message.answers, message.fields);
+        if (fillResults.length > 0) {
+          chrome.runtime.sendMessage({ action: "REPORT_INJECT_RESULTS", results: fillResults });
+        }
+      })();
       return true;
     }
 
@@ -111,29 +109,57 @@ function extractFormSchema(): FormField[] {
   elements.forEach((el) => {
     const element = el as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
 
-    if (
+    const isHidden = 
       element.type === 'hidden' ||
+      element.style.display === 'none' ||
+      element.style.visibility === 'hidden' ||
+      element.style.opacity === '0' ||
+      element.offsetParent === null ||
+      (element.getBoundingClientRect().width === 0 || element.getBoundingClientRect().height === 0);
+
+    const isNonInteractive = 
       element.type === 'submit' ||
       element.type === 'button' ||
       element.disabled ||
-      ('readOnly' in element && element.readOnly) ||
-      element.offsetParent === null ||
-      element.style.display === 'none' ||
-      element.style.visibility === 'hidden' ||
-      element.style.opacity === '0'
-    ) {
+      ('readOnly' in element && element.readOnly);
+
+    if (isNonInteractive) {
       return;
     }
 
-    const rect = element.getBoundingClientRect();
-    if (rect.width === 0 || rect.height === 0) {
-      return;
+    if (isHidden) {
+      // Modern ATS (Greenhouse, Ashby, etc) use custom UI dropdowns that visually hide the real <select>.
+      // We MUST extract these hidden <select> elements, otherwise we miss the options!
+      if (element.tagName.toLowerCase() !== 'select') {
+        return;
+      }
     }
 
     // Ignore functional UI inputs (like Select2 search boxes) that have no name and no id.
     // Real form fields being submitted to an ATS will always have a name or id.
     if (!element.name && !element.id) {
       return;
+    }
+
+    // Ignore fake UI search textboxes used by custom dropdowns (Select2, React-Select)
+    // ONLY IF a real <select> element exists nearby to take its place.
+    // If no <select> exists (like on Ashby), this combobox IS the field, so we must keep it!
+    if (element.tagName.toLowerCase() === 'input') {
+      const role = element.getAttribute('role');
+      const ariaAuto = element.getAttribute('aria-autocomplete');
+      const classes = element.className || '';
+      
+      if (
+        role === 'combobox' || 
+        ariaAuto === 'list' || 
+        (typeof classes === 'string' && (classes.includes('select2-search') || classes.includes('react-select')))
+      ) {
+        // Look for a nearby select element in a parent container
+        const container = element.closest('div, .field, .form-group, label');
+        if (container && container.querySelector('select')) {
+          return;
+        }
+      }
     }
 
     if (element.type === 'radio') {

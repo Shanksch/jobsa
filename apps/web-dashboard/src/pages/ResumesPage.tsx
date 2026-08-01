@@ -1,7 +1,7 @@
 import * as React from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
-import { FileText, Trash2, Star, Eye, UploadCloud, ChevronRight } from "lucide-react";
+import { FileText, Trash2, Star, Eye, UploadCloud } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import {

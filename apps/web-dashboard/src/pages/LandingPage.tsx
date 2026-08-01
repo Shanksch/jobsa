@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Button, Logo } from "@jobsa/ui";
+import { Logo } from "@jobsa/ui";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowRight,
