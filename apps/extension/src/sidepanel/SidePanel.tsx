@@ -40,8 +40,8 @@ export function SidePanel() {
     return () => clearInterval(interval);
   }, []);
 
-  const checkHealthAndResumes = useCallback(async () => {
-    setStatus("checking");
+  const checkHealthAndResumes = useCallback(async (isWakeUp = false) => {
+    setStatus(isWakeUp === true ? "waking_up" : "checking");
     setError(null);
     chrome.runtime.sendMessage({ action: "list_resumes" }, (response) => {
       if (chrome.runtime.lastError || response?.error) {
@@ -242,9 +242,19 @@ export function SidePanel() {
         <div className="flex-1">
           <h1 className="text-sm font-semibold tracking-tight leading-none">JobSA Copilot</h1>
         </div>
-        <div className="flex items-center gap-2" title={status}>
-          <div className={`size-2 rounded-full ${status === 'connected' ? 'bg-emerald-500' : 'bg-red-500'}`} />
-        </div>
+        <button 
+          onClick={() => checkHealthAndResumes(true)}
+          className="flex items-center gap-2 p-1.5 -mr-1.5 rounded-md hover:bg-muted/50 transition-colors cursor-pointer disabled:cursor-default" 
+          title={status === 'connected' ? 'Connected' : 'Click to wake up backend'}
+          disabled={status === 'checking' || status === 'waking_up' || status === 'connected'}
+        >
+          {status === 'waking_up' && <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">Waking up...</span>}
+          <div className={cn("size-2 rounded-full", {
+            'bg-emerald-500': status === 'connected',
+            'bg-amber-500 animate-pulse': status === 'checking' || status === 'waking_up',
+            'bg-red-500': status === 'disconnected'
+          })} />
+        </button>
       </div>
 
       {/* Main Content */}

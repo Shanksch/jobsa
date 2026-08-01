@@ -95,7 +95,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 });
 
 async function getBackendUrl(): Promise<string> {
-  return 'http://localhost:8000';
+  return 'https://jobsa-backend.onrender.com';
 }
 
 const MAX_RETRIES = 4;

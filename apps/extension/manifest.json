@@ -4,14 +4,14 @@
   "description": "Intelligently autofill job applications across ATS platforms with AI-powered matching and human review.",
   "version": "0.1.0",
   "icons": {
-    "16": "public/logo.png",
-    "48": "public/logo.png",
-    "128": "public/logo.png"
+    "16": "logo.png",
+    "48": "logo.png",
+    "128": "logo.png"
   },
   "action": {
     "default_icon": {
-      "16": "public/logo.png",
-      "48": "public/logo.png"
+      "16": "logo.png",
+      "48": "logo.png"
     }
   },
   "side_panel": {
