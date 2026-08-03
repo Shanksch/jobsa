@@ -18,36 +18,74 @@
     "service_worker": "src/background/service-worker.ts",
     "type": "module"
   },
+  "options_page": "options.html",
   "content_scripts": [
-
     {
       "matches": [
-        "<all_urls>"
+        "https://boards.greenhouse.io/*",
+        "https://job-boards.greenhouse.io/*",
+        "https://jobs.lever.co/*",
+        "https://*.myworkdayjobs.com/*",
+        "https://careers.smartrecruiters.com/*",
+        "https://jobs.smartrecruiters.com/*",
+        "https://*.icims.com/*",
+        "https://*.taleo.net/*",
+        "https://*.successfactors.com/*",
+        "https://jobs.jobvite.com/*",
+        "https://*.jobvite.com/*",
+        "https://*.bamboohr.com/*",
+        "https://app.jazz.co/*",
+        "https://*.applytojob.com/*",
+        "https://apply.workable.com/*",
+        "https://jobs.workable.com/*",
+        "https://jobs.ashbyhq.com/*",
+        "https://*.breezy.hr/*",
+        "https://*.recruitee.com/*",
+        "https://*.jobs.personio.com/*",
+        "https://*.teamtailor.com/*",
+        "https://*.csod.com/*",
+        "https://*.avature.net/*",
+        "https://*.ultipro.com/*",
+        "https://workforcenow.adp.com/*",
+        "https://*.bullhornstaffing.com/*"
       ],
-      "all_frames": false,
-      "js": ["src/content/widget.ts"]
+      "all_frames": true,
+      "js": [
+        "content/detect-form.js",
+        "src/content/widget.ts"
+      ]
     },
     {
       "matches": [
         "https://jobsa-web-dashboard.vercel.app/*",
         "http://localhost:5173/*"
       ],
-      "js": ["src/content/auth-sync.ts"]
+      "js": [
+        "src/content/auth-sync.ts"
+      ]
     }
   ],
   "permissions": [
-    "storage",
-    "activeTab"
+    "activeTab",
+    "scripting",
+    "storage"
   ],
   "host_permissions": [
     "https://jobsa-backend.onrender.com/*",
     "http://localhost:8000/*",
     "https://xhnzyznqeojaqqzutdfp.supabase.co/*"
   ],
+  "optional_host_permissions": [
+    "https://*/*"
+  ],
   "web_accessible_resources": [
     {
-      "resources": ["logo.png"],
-      "matches": ["<all_urls>"]
+      "resources": [
+        "logo.png"
+      ],
+      "matches": [
+        "<all_urls>"
+      ]
     }
   ]
 }

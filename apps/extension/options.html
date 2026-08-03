@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JobSA — Settings</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      max-width: 520px;
+      margin: 40px auto;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: #0f1117;
+      color: #e4e4e7;
+      padding: 32px;
+    }
+
+    h1 {
+      font-size: 22px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      letter-spacing: -0.02em;
+    }
+
+    .subtitle {
+      font-size: 13px;
+      color: #71717a;
+      margin-bottom: 32px;
+      line-height: 1.5;
+    }
+
+    /* ── Toggle card ── */
+    .card {
+      background: #18181b;
+      border: 1px solid #27272a;
+      border-radius: 12px;
+      padding: 20px 24px;
+    }
+
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .toggle-label {
+      flex: 1;
+    }
+
+    .toggle-label strong {
+      display: block;
+      font-size: 14px;
+      font-weight: 600;
+      color: #f4f4f5;
+      margin-bottom: 4px;
+    }
+
+    .toggle-label span {
+      font-size: 12px;
+      color: #a1a1aa;
+      line-height: 1.4;
+    }
+
+    /* ── Custom switch ── */
+    .switch {
+      position: relative;
+      width: 44px;
+      height: 24px;
+      flex-shrink: 0;
+    }
+
+    .switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .slider {
+      position: absolute;
+      inset: 0;
+      background: #3f3f46;
+      border-radius: 24px;
+      cursor: pointer;
+      transition: background 0.25s ease;
+    }
+
+    .slider::before {
+      content: "";
+      position: absolute;
+      top: 3px;
+      left: 3px;
+      width: 18px;
+      height: 18px;
+      background: #fff;
+      border-radius: 50%;
+      transition: transform 0.25s ease;
+    }
+
+    .switch input:checked + .slider {
+      background: #22c55e;
+    }
+
+    .switch input:checked + .slider::before {
+      transform: translateX(20px);
+    }
+
+    .switch input:disabled + .slider {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    /* ── Status & info ── */
+    #status {
+      margin-top: 16px;
+      font-size: 12px;
+      color: #a1a1aa;
+      min-height: 18px;
+      transition: color 0.2s ease;
+    }
+
+    #status.success {
+      color: #22c55e;
+    }
+
+    #status.error {
+      color: #ef4444;
+    }
+
+    #status.warning {
+      color: #f59e0b;
+    }
+
+    .info {
+      margin-top: 24px;
+      padding: 16px;
+      background: #1c1c22;
+      border: 1px solid #27272a;
+      border-radius: 10px;
+    }
+
+    .info h3 {
+      font-size: 12px;
+      font-weight: 600;
+      color: #a1a1aa;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 8px;
+    }
+
+    .info p {
+      font-size: 12px;
+      color: #71717a;
+      line-height: 1.6;
+    }
+
+    .permission-badge {
+      display: inline-block;
+      margin-top: 12px;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+    }
+
+    .permission-badge.granted {
+      background: rgba(34, 197, 94, 0.15);
+      color: #22c55e;
+      border: 1px solid rgba(34, 197, 94, 0.25);
+    }
+
+    .permission-badge.revoked {
+      background: rgba(113, 113, 122, 0.15);
+      color: #71717a;
+      border: 1px solid rgba(113, 113, 122, 0.25);
+    }
+  </style>
+</head>
+<body>
+  <h1>JobSA Settings</h1>
+  <p class="subtitle">
+    Configure how JobSA detects job application forms across the web.
+  </p>
+
+  <div class="card">
+    <div class="toggle-row">
+      <div class="toggle-label">
+        <strong>Enable auto-detect on all sites</strong>
+        <span>
+          Run form detection on every HTTPS page, not just known ATS platforms.
+          Chrome will ask for your permission before enabling.
+        </span>
+      </div>
+      <label class="switch" id="toggle-switch">
+        <input type="checkbox" id="all-sites-toggle">
+        <span class="slider"></span>
+      </label>
+    </div>
+    <p id="status"></p>
+  </div>
+
+  <div class="info">
+    <h3>What this does</h3>
+    <p>
+      By default, JobSA only auto-detects application forms on
+      <strong>25+ known ATS platforms</strong> (Greenhouse, Lever, Workday, etc.).
+      Enabling this option allows auto-detection on <em>any</em> website — useful
+      for companies that use their own custom application systems.
+    </p>
+    <p style="margin-top: 8px;">
+      You can disable this at any time, and the permission will be fully revoked.
+    </p>
+    <span class="permission-badge revoked" id="permission-badge">
+      All-sites access: Not granted
+    </span>
+  </div>
+
+  <script type="module" src="options.js"></script>
+</body>
+</html>

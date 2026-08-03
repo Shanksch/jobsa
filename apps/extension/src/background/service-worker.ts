@@ -18,6 +18,7 @@ chrome.runtime.onInstalled.addListener((details) => {
     console.log(
       `[JobSA] Updated from ${details.previousVersion} to ${chrome.runtime.getManifest().version}`
     );
+    cleanupDynamicScripts();
   }
 });
 
@@ -37,6 +38,37 @@ chrome.runtime.onConnect.addListener((port) => {
 
 // Listen for messages from content scripts
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  if (message.type === "FORM_DETECTED") {
+    const tabId = _sender.tab?.id;
+    if (tabId != null) {
+      chrome.action.setBadgeText({ text: "!", tabId });
+      chrome.action.setBadgeBackgroundColor({ color: "#22c55e", tabId });
+      console.log(`[JobSA] Form detected on tab ${tabId}: ${_sender.tab?.url}`);
+    }
+    sendResponse({ ok: true });
+    return;
+  }
+
+  if (message.type === "REGISTER_ALL_SITES") {
+    registerAllSitesScript()
+      .then(() => sendResponse({ ok: true }))
+      .catch((err: any) => {
+        console.error("[JobSA] Failed to register all-sites script:", err);
+        sendResponse({ ok: false, error: err.message });
+      });
+    return true; 
+  }
+
+  if (message.type === "UNREGISTER_ALL_SITES") {
+    unregisterAllSitesScript()
+      .then(() => sendResponse({ ok: true }))
+      .catch((err: any) => {
+        console.error("[JobSA] Failed to unregister all-sites script:", err);
+        sendResponse({ ok: false, error: err.message });
+      });
+    return true;
+  }
+
   if (message.action === "save_token") {
     if (message.token) {
       chrome.storage.local.set({ sb_auth_token: message.token });
@@ -307,5 +339,72 @@ async function handleUpdateApplication(payload: {
   }
   return (await response.json())[0];
 }
+
+// ---------------------------------------------------------------------------
+// Dynamic content-script management
+// ---------------------------------------------------------------------------
+
+const DYNAMIC_SCRIPT_ID = "all-sites-detect";
+
+async function registerAllSitesScript() {
+  await cleanupDynamicScripts();
+
+  await chrome.scripting.registerContentScripts([
+    {
+      id: DYNAMIC_SCRIPT_ID,
+      matches: ["https://*/*"],
+      allFrames: true,
+      js: ["content/detect-form.js", "src/content/widget.ts"],
+      runAt: "document_idle",
+    },
+  ]);
+
+  console.log("[JobSA] Registered all-sites dynamic content script");
+}
+
+async function unregisterAllSitesScript() {
+  await cleanupDynamicScripts();
+  console.log("[JobSA] Unregistered all-sites dynamic content script");
+}
+
+async function cleanupDynamicScripts() {
+  try {
+    const registered = await chrome.scripting.getRegisteredContentScripts({
+      ids: [DYNAMIC_SCRIPT_ID],
+    });
+    if (registered.length > 0) {
+      await chrome.scripting.unregisterContentScripts({
+        ids: [DYNAMIC_SCRIPT_ID],
+      });
+    }
+  } catch (err: any) {
+    console.warn("[JobSA] cleanupDynamicScripts:", err.message);
+  }
+}
+
+async function restoreAllSitesScript() {
+  try {
+    const { allSitesEnabled } = await chrome.storage.local.get("allSitesEnabled");
+
+    if (!allSitesEnabled) return;
+
+    const hasPermission = await chrome.permissions.contains({
+      origins: ["https://*/*"],
+    });
+
+    if (hasPermission) {
+      await registerAllSitesScript();
+      console.log("[JobSA] Restored all-sites script on startup");
+    } else {
+      await chrome.storage.local.set({ allSitesEnabled: false });
+      await cleanupDynamicScripts();
+      console.warn("[JobSA] All-sites permission was revoked externally; disabled flag");
+    }
+  } catch (err) {
+    console.error("[JobSA] restoreAllSitesScript error:", err);
+  }
+}
+
+restoreAllSitesScript();
 
 export {};
