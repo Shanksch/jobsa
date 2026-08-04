@@ -44,6 +44,10 @@ export function LoginPage() {
   };
 
   const handleSignup = async () => {
+    if (!email || !password) {
+      toast.error("Please enter both email and password to create an account.");
+      return;
+    }
     setIsLoading(true);
     try {
       const { data, error } = await supabase.auth.signUp({

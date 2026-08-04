@@ -182,7 +182,7 @@ export function ResumesPage() {
         </motion.div>
 
         {/* Resumes List */}
-        <motion.div variants={itemVariants} className="md:col-span-2 space-y-4">
+        <motion.div variants={itemVariants} className="md:col-span-2 space-y-4 min-w-0">
           <div className="flex items-center justify-between mb-2">
             <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Your Resumes</h2>
             <span className="text-xs font-bold text-muted-foreground/60">{resumes?.length || 0} Total</span>
@@ -212,9 +212,9 @@ export function ResumesPage() {
                   initial={{ opacity: 0, scale: 0.95 }}
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ delay: 0.1 + (i * 0.05), type: "spring", stiffness: 300, damping: 25 }}
-                  className="group"
+                  className="group min-w-0"
                 >
-                  <Card className="flex flex-col justify-between h-full group-hover:-translate-y-1 transition-all duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] hover:shadow-xl hover:shadow-primary/5 hover:border-primary/20">
+                  <Card className="flex flex-col justify-between h-full group-hover:-translate-y-1 transition-all duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] hover:shadow-xl hover:shadow-primary/5 hover:border-primary/20 min-w-0">
                     {resume.is_primary && (
                       <div className="absolute top-4 right-4 bg-primary/10 text-primary border border-primary/20 text-[9px] uppercase tracking-widest font-black px-2.5 py-1 rounded-full flex items-center gap-1 shadow-sm z-10 backdrop-blur-md">
                         <Star className="size-3 fill-primary" />
@@ -223,9 +223,9 @@ export function ResumesPage() {
                     )}
 
                     <CardHeader className="pb-3 pt-6 pr-24 border-b border-border/20 bg-muted/10 group-hover:bg-primary/[0.02] transition-colors">
-                      <CardTitle className="text-base font-bold flex items-center gap-2 truncate group-hover:text-primary transition-colors">
+                      <CardTitle className="text-base font-bold flex items-center gap-2 group-hover:text-primary transition-colors min-w-0">
                         <FileText className="size-5 text-primary shrink-0 opacity-80" />
-                        {resume.name}
+                        <span className="truncate">{resume.name}</span>
                       </CardTitle>
                       <CardDescription className="text-xs truncate font-medium mt-1">{resume.file_name}</CardDescription>
                     </CardHeader>

@@ -84,6 +84,10 @@ function injectWidget() {
     requestAnimationFrame(() => {
       requestAnimationFrame(() => { panel!.classList.add('visible'); });
     });
+    
+    // Squeeze website
+    document.documentElement.style.setProperty('padding-right', '404px', 'important');
+    document.documentElement.style.setProperty('transition', 'padding-right 0.3s cubic-bezier(0.16, 1, 0.3, 1)', 'important');
   }
 
   function closePanel() {
@@ -92,7 +96,13 @@ function injectWidget() {
     fab.classList.remove('open');
     const p = panel;
     panel = null;
-    setTimeout(() => p.remove(), 200);
+    
+    // Restore website layout
+    document.documentElement.style.removeProperty('padding-right');
+    setTimeout(() => {
+      if (!panel) document.documentElement.style.removeProperty('transition');
+      p.remove();
+    }, 300);
   }
 
   function toggle() {

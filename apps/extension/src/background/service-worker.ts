@@ -5,6 +5,9 @@
  * and will coordinate between content scripts and the backend in later phases.
  */
 
+import detectFormPath from "../../content/detect-form.js?script";
+import widgetPath from "../content/widget.ts?script";
+
 chrome.runtime.onInstalled.addListener((details) => {
   console.log("[JobSA] Extension installed", {
     reason: details.reason,
@@ -25,9 +28,27 @@ chrome.runtime.onInstalled.addListener((details) => {
 // Toggle the floating widget when the toolbar icon is clicked
 chrome.action.onClicked.addListener(async (tab) => {
   if (tab.id) {
-    chrome.tabs.sendMessage(tab.id, { action: 'TOGGLE_WIDGET' }).catch(() => {
-      // Content script may not be loaded yet on some pages (e.g. chrome://)
-    });
+    try {
+      // Attempt to toggle the widget. If the content script isn't loaded, this throws an error.
+      await chrome.tabs.sendMessage(tab.id, { action: 'TOGGLE_WIDGET' });
+    } catch (e) {
+      // Content script may not be loaded yet on some pages.
+      // We can use the activeTab permission to inject it now!
+      if (tab.url && !tab.url.startsWith("chrome://") && !tab.url.startsWith("edge://") && !tab.url.startsWith("about:")) {
+        try {
+          await chrome.scripting.executeScript({
+            target: { tabId: tab.id },
+            files: [detectFormPath, widgetPath]
+          });
+          // Give it a tiny bit of time to initialize
+          setTimeout(() => {
+            chrome.tabs.sendMessage(tab.id!, { action: 'TOGGLE_WIDGET' }).catch(() => {});
+          }, 150);
+        } catch (injectError) {
+          console.error("[JobSA] Failed to dynamically inject widget:", injectError);
+        }
+      }
+    }
   }
 });
 
@@ -354,7 +375,7 @@ async function registerAllSitesScript() {
       id: DYNAMIC_SCRIPT_ID,
       matches: ["https://*/*"],
       allFrames: true,
-      js: ["content/detect-form.js", "src/content/widget.ts"],
+      js: [detectFormPath, widgetPath],
       runAt: "document_idle",
     },
   ]);

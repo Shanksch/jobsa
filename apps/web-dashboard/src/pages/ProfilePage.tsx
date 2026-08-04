@@ -123,7 +123,8 @@ export function ProfilePage() {
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-12">
         {/* Section 1 */}
-        <motion.div variants={itemVariants} className="grid md:grid-cols-3 gap-x-8 gap-y-6 bg-card/30 p-8 rounded-[2rem] border border-border/40 shadow-sm">
+        {/* Sections */}
+        <motion.div variants={itemVariants} className="grid md:grid-cols-3 gap-x-8 gap-y-6 bg-card/30 p-6 md:p-8 rounded-[2rem] border border-border/40 shadow-sm">
           <div className="md:col-span-1 pt-2">
             <h3 className="text-lg font-bold text-foreground">Personal Details</h3>
             <p className="text-sm text-muted-foreground font-medium mt-2 pr-4 leading-relaxed">
@@ -164,7 +165,8 @@ export function ProfilePage() {
         </motion.div>
 
         {/* Section 2 */}
-        <motion.div variants={itemVariants} className="grid md:grid-cols-3 gap-x-8 gap-y-6 bg-card/30 p-8 rounded-[2rem] border border-border/40 shadow-sm">
+        {/* Sections */}
+        <motion.div variants={itemVariants} className="grid md:grid-cols-3 gap-x-8 gap-y-6 bg-card/30 p-6 md:p-8 rounded-[2rem] border border-border/40 shadow-sm">
           <div className="md:col-span-1 pt-2">
             <h3 className="text-lg font-bold text-foreground">Professional Links</h3>
             <p className="text-sm text-muted-foreground font-medium mt-2 pr-4 leading-relaxed">
@@ -196,7 +198,8 @@ export function ProfilePage() {
         </motion.div>
 
         {/* Section 3 */}
-        <motion.div variants={itemVariants} className="grid md:grid-cols-3 gap-x-8 gap-y-6 bg-card/30 p-8 rounded-[2rem] border border-border/40 shadow-sm">
+        {/* Sections */}
+        <motion.div variants={itemVariants} className="grid md:grid-cols-3 gap-x-8 gap-y-6 bg-card/30 p-6 md:p-8 rounded-[2rem] border border-border/40 shadow-sm">
           <div className="md:col-span-1 pt-2">
             <h3 className="text-lg font-bold text-foreground">Professional Summary</h3>
             <p className="text-sm text-muted-foreground font-medium mt-2 pr-4 leading-relaxed">
@@ -215,7 +218,8 @@ export function ProfilePage() {
         </motion.div>
 
         {/* Section 4 */}
-        <motion.div variants={itemVariants} className="grid md:grid-cols-3 gap-x-8 gap-y-6 bg-card/30 p-8 rounded-[2rem] border border-border/40 shadow-sm">
+        {/* Sections */}
+        <motion.div variants={itemVariants} className="grid md:grid-cols-3 gap-x-8 gap-y-6 bg-card/30 p-6 md:p-8 rounded-[2rem] border border-border/40 shadow-sm">
           <div className="md:col-span-1 pt-2">
             <h3 className="text-lg font-bold text-foreground">Preferences</h3>
             <p className="text-sm text-muted-foreground font-medium mt-2 pr-4 leading-relaxed">
@@ -269,30 +273,32 @@ export function ProfilePage() {
               ) : (
                 <div className="space-y-3">
                   {languageFields.map((field, index) => (
-                    <div key={field.id} className="flex gap-4 items-end bg-background p-4 rounded-xl border border-border/50 shadow-sm transition-all hover:border-primary/20">
-                      <div className="flex-1">
+                    <div key={field.id} className="flex flex-col sm:flex-row gap-4 sm:items-end bg-background p-4 rounded-xl border border-border/50 shadow-sm transition-all hover:border-primary/20">
+                      <div className="flex-1 w-full sm:w-auto">
                         <Input
                           placeholder="e.g. Spanish"
                           error={(errors.languages as any)?.[index]?.language?.message}
                           {...register(`languages.${index}.language` as const)}
                         />
                       </div>
-                      <div className="w-48">
-                        <Input
-                          placeholder="e.g. Native / Conversational"
-                          error={(errors.languages as any)?.[index]?.proficiency?.message}
-                          {...register(`languages.${index}.proficiency` as const)}
-                        />
+                      <div className="flex gap-4 items-end w-full sm:w-auto">
+                        <div className="flex-1 sm:w-48">
+                          <Input
+                            placeholder="e.g. Native / Conversational"
+                            error={(errors.languages as any)?.[index]?.proficiency?.message}
+                            {...register(`languages.${index}.proficiency` as const)}
+                          />
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => removeLanguage(index)}
+                          className="text-destructive hover:bg-destructive/10 shrink-0 mb-1"
+                        >
+                          <Trash2 className="size-4" />
+                        </Button>
                       </div>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => removeLanguage(index)}
-                        className="text-destructive hover:bg-destructive/10 shrink-0 mb-1"
-                      >
-                        <Trash2 className="size-4" />
-                      </Button>
                     </div>
                   ))}
                 </div>
