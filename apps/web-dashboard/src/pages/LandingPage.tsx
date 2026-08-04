@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Logo } from "@jobsa/ui";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -205,7 +205,14 @@ function PremiumDemoPanel() {
 export function LandingPage() {
   const { session } = useAuth();
   const { theme, toggleTheme } = useTheme();
+  const navigate = useNavigate();
   const destination = session ? "/dashboard" : "/login";
+
+  useEffect(() => {
+    if (session) {
+      navigate("/dashboard");
+    }
+  }, [session, navigate]);
 
   return (
     <div className="min-h-screen bg-background text-foreground overflow-x-hidden selection:bg-primary/20">
