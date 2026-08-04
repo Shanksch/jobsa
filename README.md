@@ -33,7 +33,13 @@ Job applications require candidates to repeatedly enter the same information acr
 
 <div align="center">
 
-https://github.com/user-attachments/assets/REPLACE_WITH_VIDEO_ID
+
+
+https://github.com/user-attachments/assets/b9152a05-dad9-4372-b6c1-28a75c62f132
+
+
+
+
 
 > **31s walkthrough:** Upload resume → Open a Greenhouse job posting → AI fills the entire application → Review answers → Submit.
 
