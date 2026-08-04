@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="docs/banner.png" alt="JobSA Banner" width="100%" />
+<img src="docs/banner.png" alt="JobSA Banner" width="800" />
 
 <br />
 
@@ -52,9 +52,6 @@ https://github.com/user-attachments/assets/REPLACE_WITH_VIDEO_ID
   <tr>
     <td><img src="docs/screenshots/resumes.png" alt="Resumes" width="400" /><br /><sub><b>Resumes</b> — Upload & AI-powered parsing</sub></td>
     <td><img src="docs/screenshots/applications.png" alt="Applications" width="400" /><br /><sub><b>Applications</b> — Track every submission</sub></td>
-  </tr>
-  <tr>
-    <td colspan="2"><img src="docs/screenshots/extension.png" alt="Extension" width="600" /><br /><sub><b>Chrome Extension</b> — One-click autofill on any ATS</sub></td>
   </tr>
 </table>
 </div>
