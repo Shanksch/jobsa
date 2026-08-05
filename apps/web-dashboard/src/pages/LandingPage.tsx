@@ -12,8 +12,10 @@ import {
   Sun,
   Target,
   Zap,
+  Chrome,
 } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext.js";
+import { CHROME_WEBSTORE_URL } from "../lib/extension.js";
 
 /* ────────────────────────────────────────────────────────────────────────
  * Theme logic
@@ -293,6 +295,16 @@ export function LandingPage() {
                     </div>
                   </div>
                 </Link>
+                <a
+                  href={CHROME_WEBSTORE_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="group flex items-center gap-2 rounded-full border border-border/60 bg-background/60 backdrop-blur-md px-6 py-3 font-semibold text-sm text-foreground hover:bg-muted/80 transition-colors"
+                >
+                  <Chrome className="size-4" />
+                  Chrome Extension
+                  <ArrowRight className="size-3 group-hover:translate-x-1 transition-transform" />
+                </a>
                 <p className="text-sm text-muted-foreground ml-2">No credit card required.</p>
               </motion.div>
             </motion.div>

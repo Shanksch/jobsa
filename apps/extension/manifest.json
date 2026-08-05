@@ -54,15 +54,6 @@
         "content/detect-form.js",
         "src/content/widget.ts"
       ]
-    },
-    {
-      "matches": [
-        "https://jobsa-web-dashboard.vercel.app/*",
-        "http://localhost:5173/*"
-      ],
-      "js": [
-        "src/content/auth-sync.ts"
-      ]
     }
   ],
   "permissions": [
@@ -87,5 +78,11 @@
         "<all_urls>"
       ]
     }
-  ]
+  ],
+  "externally_connectable": {
+    "matches": [
+      "https://jobsa-web-dashboard.vercel.app/*",
+      "http://localhost:5173/*"
+    ]
+  }
 }

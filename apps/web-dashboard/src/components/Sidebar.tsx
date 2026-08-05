@@ -11,10 +11,12 @@ import {
   ChevronLeft,
   ChevronRight,
   LogOut,
+  Chrome,
 } from "lucide-react";
 import { cn, Logo } from "@jobsa/ui";
 import { supabase } from "../lib/supabase.js";
 import { useAuth } from "../contexts/AuthContext.js";
+import { isExtensionInstalled, CHROME_WEBSTORE_URL } from "../lib/extension.js";
 
 const navItems = [
   { label: "Dashboard", path: "/dashboard", icon: LayoutDashboard },
@@ -29,6 +31,11 @@ export function Sidebar() {
   const location = useLocation();
   const navigate = useNavigate();
   const { session } = useAuth();
+  const [extensionConnected, setExtensionConnected] = React.useState(false);
+  
+  React.useEffect(() => {
+    isExtensionInstalled().then(setExtensionConnected);
+  }, []);
   
   const [isCollapsed, setIsCollapsed] = React.useState(() => {
     return localStorage.getItem("jobsa-sidebar-collapsed") === "true";
@@ -132,6 +139,24 @@ export function Sidebar() {
                 </p>
               </div>
             </div>
+            
+            {extensionConnected ? (
+              <div className="flex w-full items-center gap-2 rounded-lg bg-emerald-500/10 px-2 py-1.5 text-xs font-semibold text-emerald-600 border border-emerald-500/20">
+                <Chrome className="size-4 shrink-0" />
+                Extension Connected
+              </div>
+            ) : (
+              <a 
+                href={CHROME_WEBSTORE_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex w-full items-center gap-2 rounded-lg bg-primary/10 px-2 py-1.5 text-xs font-semibold text-primary hover:bg-primary/20 transition-colors"
+              >
+                <Chrome className="size-4 shrink-0" />
+                Install Extension
+              </a>
+            )}
+
             <button
               onClick={() => {
                 navigate("/");
@@ -150,6 +175,23 @@ export function Sidebar() {
                 {userEmail.charAt(0).toUpperCase()}
               </span>
             </div>
+            
+            {extensionConnected ? (
+              <div className="flex size-8 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600 border border-emerald-500/20" title="Extension Connected">
+                <Chrome className="size-4" />
+              </div>
+            ) : (
+              <a 
+                href={CHROME_WEBSTORE_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex size-8 items-center justify-center rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+                title="Install Extension"
+              >
+                <Chrome className="size-4" />
+              </a>
+            )}
+
             <button
               onClick={() => {
                 navigate("/");

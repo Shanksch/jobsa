@@ -153,6 +153,35 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   }
 });
 
+// Listen for messages from the web dashboard (externally_connectable)
+chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => {
+  // Only accept messages from our known origins
+  const allowedOrigins = [
+    "https://jobsa-web-dashboard.vercel.app",
+    "http://localhost:5173",
+  ];
+
+  if (!sender.origin || !allowedOrigins.includes(sender.origin)) {
+    sendResponse({ error: "Unauthorized origin" });
+    return;
+  }
+
+  if (message.action === "save_token") {
+    if (message.token) {
+      chrome.storage.local.set({ sb_auth_token: message.token });
+    } else {
+      chrome.storage.local.remove("sb_auth_token");
+    }
+    sendResponse({ success: true });
+    return true;
+  }
+
+  if (message.action === "ping") {
+    sendResponse({ status: "connected", version: chrome.runtime.getManifest().version });
+    return true;
+  }
+});
+
 async function getBackendUrl(): Promise<string> {
   return 'https://jobsa-backend.onrender.com';
 }

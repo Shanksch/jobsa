@@ -9,10 +9,13 @@ import {
   Sliders,
   LogOut,
   X,
+  Chrome,
 } from "lucide-react";
+import * as React from "react";
 import { cn, Logo } from "@jobsa/ui";
 import { supabase } from "../lib/supabase.js";
 import { useAuth } from "../contexts/AuthContext.js";
+import { isExtensionInstalled, CHROME_WEBSTORE_URL } from "../lib/extension.js";
 
 const navItems = [
   { label: "Dashboard", path: "/dashboard", icon: LayoutDashboard },
@@ -33,6 +36,12 @@ export function MobileNav({ isOpen, onClose }: MobileNavProps) {
   const navigate = useNavigate();
   const { session } = useAuth();
   
+  const [extensionConnected, setExtensionConnected] = React.useState(false);
+  
+  React.useEffect(() => {
+    isExtensionInstalled().then(setExtensionConnected);
+  }, []);
+
   const userEmail = session?.user?.email || "user@example.com";
 
   return (
@@ -122,6 +131,25 @@ export function MobileNav({ isOpen, onClose }: MobileNavProps) {
                     Pro Plan
                   </p>
                 </div>
+              </div>
+              
+              <div className="px-2 mb-4">
+                {extensionConnected ? (
+                  <div className="flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-500/10 px-2 py-2 text-sm font-semibold text-emerald-600 border border-emerald-500/20">
+                    <Chrome className="size-4 shrink-0" />
+                    Extension Connected
+                  </div>
+                ) : (
+                  <a 
+                    href={CHROME_WEBSTORE_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary/10 px-2 py-2 text-sm font-semibold text-primary hover:bg-primary/20 transition-colors"
+                  >
+                    <Chrome className="size-4 shrink-0" />
+                    Install Extension
+                  </a>
+                )}
               </div>
 
               <button

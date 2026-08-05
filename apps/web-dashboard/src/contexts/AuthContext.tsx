@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "../lib/supabase.js";
+import { syncTokenToExtension } from "../lib/extension.js";
 
 type AuthContextType = {
   session: Session | null;
@@ -25,11 +26,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setUser(session?.user ?? null);
       setIsLoading(false);
       
-      // Broadcast to extension
-      window.postMessage({ 
-        type: 'JOBSA_AUTH_SYNC', 
-        token: session?.access_token || null 
-      }, '*');
+      syncTokenToExtension(session?.access_token || null);
     });
 
     const {
@@ -39,29 +36,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setUser(session?.user ?? null);
       setIsLoading(false);
       
-      // Broadcast to extension
-      window.postMessage({ 
-        type: 'JOBSA_AUTH_SYNC', 
-        token: session?.access_token || null 
-      }, '*');
+      syncTokenToExtension(session?.access_token || null);
     });
-
-    // Listen for extension requesting token (in case it loaded after mount)
-    const handleMessage = (event: MessageEvent) => {
-      if (event.data?.type === 'JOBSA_AUTH_REQUEST') {
-        supabase.auth.getSession().then(({ data: { session } }) => {
-          window.postMessage({ 
-            type: 'JOBSA_AUTH_SYNC', 
-            token: session?.access_token || null 
-          }, '*');
-        });
-      }
-    };
-    window.addEventListener('message', handleMessage);
 
     return () => {
       subscription.unsubscribe();
-      window.removeEventListener('message', handleMessage);
     };
   }, []);
 
