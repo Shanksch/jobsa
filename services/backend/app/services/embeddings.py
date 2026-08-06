@@ -8,6 +8,7 @@ since local models (fastembed/onnxruntime) require more RAM than the
 
 import asyncio
 import os
+from typing import cast
 
 import httpx
 
@@ -34,7 +35,7 @@ async def embed_texts(texts: list[str]) -> list[list[float]]:
         for attempt in range(max_retries):
             try:
                 response = await client.post(
-                    EMBEDDING_API_URL, headers=headers, json={"inputs": texts}, timeout=30.0
+                    EMBEDDING_API_URL, headers=headers, json={"inputs": texts, "options": {"wait_for_model": True}}, timeout=60.0
                 )
             except httpx.RequestError as exc:
                 print(f"Embedding API request error: {exc}")
@@ -46,7 +47,7 @@ async def embed_texts(texts: list[str]) -> list[list[float]]:
             if response.status_code == 200:
                 result = response.json()
                 # The API returns a list of lists of floats
-                return result
+                return cast(list[list[float]], result)
 
             elif response.status_code == 503:
                 # Model is loading, wait and retry
