@@ -10,6 +10,7 @@ import { SettingsPage } from "./pages/SettingsPage.js";
 import { LoginPage } from "./pages/LoginPage.js";
 import { LandingPage } from "./pages/LandingPage.js";
 import { AuthProvider, useAuth } from "./contexts/AuthContext.js";
+import { ThemeProvider } from "./contexts/ThemeContext.js";
 import { Toaster } from "@jobsa/ui";
 import { Loader2 } from "lucide-react";
 
@@ -37,23 +38,25 @@ function ProtectedRoute() {
 
 export function App() {
   return (
-    <AuthProvider>
-      <Toaster position="top-right" closeButton richColors />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<LandingPage />} />
-          <Route path="/login" element={<LoginPage />} />
-          <Route element={<ProtectedRoute />}>
-            <Route path="/dashboard" element={<DashboardPage />} />
-            <Route path="/profile" element={<ProfilePage />} />
-            <Route path="/resumes" element={<ResumesPage />} />
-            <Route path="/resumes/:id" element={<ResumeDetailPage />} />
-            <Route path="/knowledge" element={<KnowledgeBasePage />} />
-            <Route path="/applications" element={<ApplicationsPage />} />
-            <Route path="/settings" element={<SettingsPage />} />
-          </Route>
-        </Routes>
-      </BrowserRouter>
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <Toaster position="top-right" closeButton richColors />
+        <BrowserRouter>
+          <Routes>
+            <Route path="/" element={<LandingPage />} />
+            <Route path="/login" element={<LoginPage />} />
+            <Route element={<ProtectedRoute />}>
+              <Route path="/dashboard" element={<DashboardPage />} />
+              <Route path="/profile" element={<ProfilePage />} />
+              <Route path="/resumes" element={<ResumesPage />} />
+              <Route path="/resumes/:id" element={<ResumeDetailPage />} />
+              <Route path="/knowledge" element={<KnowledgeBasePage />} />
+              <Route path="/applications" element={<ApplicationsPage />} />
+              <Route path="/settings" element={<SettingsPage />} />
+            </Route>
+          </Routes>
+        </BrowserRouter>
+      </AuthProvider>
+    </ThemeProvider>
   );
 }

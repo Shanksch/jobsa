@@ -7,6 +7,7 @@ import { Toaster, cn } from "@jobsa/ui";
 import { Menu, Moon, Sun } from "lucide-react";
 import { MobileNav } from "./MobileNav.js";
 import { motion } from "framer-motion";
+import { useTheme } from "../contexts/ThemeContext.js";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -24,21 +25,8 @@ export function Layout({ children }: LayoutProps) {
 
   const connected = health?.status === "healthy";
 
-  const [isDark, setIsDark] = React.useState(() => {
-    return document.documentElement.classList.contains("dark");
-  });
-
-  const toggleTheme = () => {
-    if (isDark) {
-      document.documentElement.classList.remove("dark");
-      localStorage.theme = 'light';
-      setIsDark(false);
-    } else {
-      document.documentElement.classList.add("dark");
-      localStorage.theme = 'dark';
-      setIsDark(true);
-    }
-  };
+  const { theme, toggleTheme } = useTheme();
+  const isDark = theme === "dark";
 
   // Close mobile menu when route changes
   React.useEffect(() => {

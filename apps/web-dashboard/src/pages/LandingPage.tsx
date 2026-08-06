@@ -16,28 +16,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext.js";
 import { CHROME_WEBSTORE_URL } from "../lib/extension.js";
-
-/* ────────────────────────────────────────────────────────────────────────
- * Theme logic
- * ──────────────────────────────────────────────────────────────────────── */
-type Theme = "light" | "dark";
-const THEME_STORAGE_KEY = "jobsa-theme";
-
-function getInitialTheme(): Theme {
-  const stored = window.localStorage.getItem(THEME_STORAGE_KEY);
-  if (stored === "light" || stored === "dark") return stored;
-  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-}
-
-function useTheme() {
-  const [theme, setTheme] = useState<Theme>(getInitialTheme);
-  useEffect(() => {
-    document.documentElement.classList.toggle("dark", theme === "dark");
-    window.localStorage.setItem(THEME_STORAGE_KEY, theme);
-  }, [theme]);
-  const toggleTheme = () => setTheme((t) => (t === "dark" ? "light" : "dark"));
-  return { theme, toggleTheme };
-}
+import { useTheme } from "../contexts/ThemeContext.js";
 
 /* ────────────────────────────────────────────────────────────────────────
  * Data & Constants
