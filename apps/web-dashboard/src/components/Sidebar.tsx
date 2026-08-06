@@ -65,7 +65,11 @@ export function Sidebar() {
       </button>
 
       {/* Brand logo */}
-      <div className={cn("flex h-16 items-center border-b border-border transition-all duration-300", isCollapsed ? "justify-center px-0" : "px-6 gap-3")}>
+      <Link 
+        to="/" 
+        state={{ fromLogo: true }}
+        className={cn("flex h-16 items-center border-b border-border transition-all duration-300 hover:bg-muted/50", isCollapsed ? "justify-center px-0" : "px-6 gap-3")}
+      >
         <div className="flex items-center justify-center shrink-0">
           <Logo className={cn("transition-all duration-300", isCollapsed ? "size-10" : "size-9")} />
         </div>
@@ -79,7 +83,7 @@ export function Sidebar() {
             Job<span className="text-primary">SA</span>
           </motion.span>
         )}
-      </div>
+      </Link>
 
       {/* Nav items list */}
       <nav className="flex-1 space-y-1.5 px-3 py-6 overflow-y-auto overflow-x-hidden">

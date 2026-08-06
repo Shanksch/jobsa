@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { Logo } from "@jobsa/ui";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -187,13 +187,15 @@ export function LandingPage() {
   const { session } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
+  const location = useLocation();
   const destination = session ? "/dashboard" : "/login";
 
   useEffect(() => {
-    if (session) {
+    // Redirect signed-in users to the dashboard, UNLESS they explicitly navigated here from the logo
+    if (session && !location.state?.fromLogo) {
       navigate("/dashboard");
     }
-  }, [session, navigate]);
+  }, [session, navigate, location.state]);
 
   return (
     <div className="min-h-screen bg-background text-foreground overflow-x-hidden selection:bg-primary/20">

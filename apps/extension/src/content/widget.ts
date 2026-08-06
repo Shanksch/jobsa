@@ -106,7 +106,11 @@ function injectWidget() {
   }
 
   function toggle() {
-    panel ? closePanel() : openPanel();
+    if (panel) {
+      closePanel();
+    } else {
+      openPanel();
+    }
   }
 
   function renderPanel() {
@@ -349,7 +353,7 @@ function extractFormSchema(): FormField[] {
 
     let lbl = '';
     const id = e.id;
-    if (id) { try { const l = document.querySelector(`label[for="${CSS.escape(id)}"]`) as HTMLLabelElement; if (l) lbl = l.innerText.trim(); } catch {} }
+    if (id) { try { const l = document.querySelector(`label[for="${CSS.escape(id)}"]`) as HTMLLabelElement; if (l) lbl = l.innerText.trim(); } catch { /* ignore */ } }
     if (!lbl && e.parentElement?.tagName.toLowerCase() === 'label') lbl = e.parentElement.innerText.replace((e as HTMLElement).innerText || '', '').trim();
     if (!lbl) lbl = e.getAttribute('aria-label') || '';
     if (!lbl && 'placeholder' in e) lbl = e.placeholder || '';
