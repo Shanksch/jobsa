@@ -1,9 +1,9 @@
 """
 Embeddings client wrapper.
 
-Uses Hugging Face's Free Inference API to offload embedding generation,
-since local models (fastembed/onnxruntime) require more RAM than the
-512MB limit available on the free Render tier.
+Uses Hugging Face's Free Inference API to fit within the 512MB RAM limit.
+To eliminate the "cold start" lag (model inactivity), we include a 
+background task that pings the model every few minutes to keep it warm.
 """
 
 import asyncio
@@ -11,6 +11,9 @@ import os
 from typing import cast
 
 import httpx
+import structlog
+
+logger = structlog.get_logger()
 
 EMBEDDING_API_URL = "https://api-inference.huggingface.co/pipeline/feature-extraction/sentence-transformers/all-MiniLM-L6-v2"
 EMBEDDING_DIM = 384
@@ -42,11 +45,10 @@ async def embed_texts(texts: list[str]) -> list[list[float]]:
                 if attempt < max_retries - 1:
                     await asyncio.sleep(2.0)
                     continue
-                return []  # Gracefully fail so autofill can continue with base profile
+                return []  # Gracefully fail
 
             if response.status_code == 200:
                 result = response.json()
-                # The API returns a list of lists of floats
                 return cast(list[list[float]], result)
 
             elif response.status_code == 503:
@@ -57,7 +59,6 @@ async def embed_texts(texts: list[str]) -> list[list[float]]:
                 except Exception:
                     wait_time = 10.0
 
-                # Cap the wait time to avoid hanging too long
                 wait_time = min(wait_time, 10.0)
                 await asyncio.sleep(wait_time)
             else:
@@ -73,3 +74,24 @@ async def embed_text(text: str) -> list[float]:
     if vectors and len(vectors) > 0:
         return vectors[0]
     return []
+
+
+async def _keep_alive_task():
+    """Pings the HF model every 4 minutes to prevent it from going to sleep."""
+    while True:
+        try:
+            # Send a tiny dummy request to keep the model warm in HF's cache
+            logger.info("pinging_huggingface_api_to_keep_warm")
+            await embed_text("keep_warm")
+        except Exception as e:
+            logger.warning("huggingface_keep_alive_failed", error=str(e))
+        # Hugging Face usually unloads models after ~5-10 minutes of inactivity
+        await asyncio.sleep(240)
+
+
+def start_embedding_keep_alive():
+    """
+    Call this from your FastAPI application startup event (lifespan)
+    to ensure the Hugging Face model never goes to sleep.
+    """
+    asyncio.create_task(_keep_alive_task())

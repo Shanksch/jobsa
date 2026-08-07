@@ -42,7 +42,7 @@ chrome.action.onClicked.addListener(async (tab) => {
           });
           // Give it a tiny bit of time to initialize
           setTimeout(() => {
-            chrome.tabs.sendMessage(tab.id!, { action: 'TOGGLE_WIDGET' }).catch(() => {});
+            chrome.tabs.sendMessage(tab.id!, { action: 'TOGGLE_WIDGET' }).catch(() => { });
           }, 150);
         } catch (injectError) {
           console.error("[JobSA] Failed to dynamically inject widget:", injectError);
@@ -77,7 +77,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
         console.error("[JobSA] Failed to register all-sites script:", err);
         sendResponse({ ok: false, error: err.message });
       });
-    return true; 
+    return true;
   }
 
   if (message.type === "UNREGISTER_ALL_SITES") {
@@ -107,9 +107,9 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
         console.error("[JobSA] Background autofill error:", error);
         sendResponse({ error: error.message || "Failed to generate answers" });
       });
-    
+
     // Return true to indicate we will respond asynchronously
-    return true; 
+    return true;
   }
 
   if (message.action === "list_resumes") {
@@ -220,11 +220,11 @@ async function handleAutofill(payload: any) {
     "Content-Type": "application/json",
     "Accept": "application/json"
   };
-  
+
   if (sb_auth_token) {
     headers["Authorization"] = `Bearer ${sb_auth_token}`;
   }
-  
+
   const body: any = { url: payload.url, fields: payload.fields };
   if (payload.resume_id) {
     body.resume_id = payload.resume_id;
@@ -235,18 +235,18 @@ async function handleAutofill(payload: any) {
     headers,
     body: JSON.stringify(body)
   });
-  
+
   if (!response.ok) {
     let errorDetail = response.statusText;
     try {
       const errorBody = await response.json();
       if (errorBody.detail) errorDetail = errorBody.detail;
-    } catch { 
+    } catch {
       // ignore 
     }
     throw new Error(`Backend Error ${response.status}: ${errorDetail}`);
   }
-  
+
   return await response.json();
 }
 
@@ -257,11 +257,11 @@ async function handleJobMatch(payload: any) {
     "Content-Type": "application/json",
     "Accept": "application/json"
   };
-  
+
   if (sb_auth_token) {
     headers["Authorization"] = `Bearer ${sb_auth_token}`;
   }
-  
+
   const response = await fetchWithRetry(`${BACKEND_URL}/api/match`, {
     method: "POST",
     headers,
@@ -270,18 +270,18 @@ async function handleJobMatch(payload: any) {
       job_description: payload.job_description
     })
   });
-  
+
   if (!response.ok) {
     let errorDetail = response.statusText;
     try {
       const errorBody = await response.json();
       if (errorBody.detail) errorDetail = errorBody.detail;
-    } catch { 
+    } catch {
       // ignore 
     }
     throw new Error(`Backend Error ${response.status}: ${errorDetail}`);
   }
-  
+
   return await response.json();
 }
 
@@ -457,4 +457,4 @@ async function restoreAllSitesScript() {
 
 restoreAllSitesScript();
 
-export {};
+export { };

@@ -19,6 +19,7 @@ from app.api.routes.resumes import router as resumes_router
 from app.config import settings
 from app.core.logging import setup_logging
 from app.core.middleware import RequestIDMiddleware
+from app.services.embeddings import start_embedding_keep_alive
 
 logger = structlog.get_logger()
 
@@ -28,6 +29,9 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Application lifespan — startup and shutdown hooks."""
     # ── Startup ──
     setup_logging(settings.log_level)
+    
+    start_embedding_keep_alive()
+    
     logger.info(
         "application_startup",
         app_name=settings.app_name,

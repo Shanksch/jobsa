@@ -196,5 +196,8 @@ async def reindex_profile(profile_id: str) -> int:
         for (source, source_id, text), embedding in zip(sources, embeddings)
     ]
 
+    if not rows:
+        return 0
+
     supabase.table("resume_chunks").insert(rows).execute()
     return len(rows)
