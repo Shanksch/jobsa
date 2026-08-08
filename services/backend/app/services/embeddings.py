@@ -38,7 +38,10 @@ async def embed_texts(texts: list[str]) -> list[list[float]]:
         for attempt in range(max_retries):
             try:
                 response = await client.post(
-                    EMBEDDING_API_URL, headers=headers, json={"inputs": texts, "options": {"wait_for_model": True}}, timeout=60.0
+                    EMBEDDING_API_URL,
+                    headers=headers,
+                    json={"inputs": texts, "options": {"wait_for_model": True}},
+                    timeout=60.0,
                 )
             except httpx.RequestError as exc:
                 print(f"Embedding API request error: {exc}")
