@@ -29,9 +29,9 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Application lifespan — startup and shutdown hooks."""
     # ── Startup ──
     setup_logging(settings.log_level)
-    
+
     start_embedding_keep_alive()
-    
+
     logger.info(
         "application_startup",
         app_name=settings.app_name,

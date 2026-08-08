@@ -17,10 +17,10 @@ from litellm import acompletion
 from app.config import settings
 from app.schemas.autofill import (
     AutofillResponse,
+    CategoryScores,
     FormSchema,
     JobMatchRequest,
     JobMatchResponse,
-    CategoryScores,
 )
 from app.services.retrieval import retrieve_for_form
 

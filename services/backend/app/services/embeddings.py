@@ -2,7 +2,7 @@
 Embeddings client wrapper.
 
 Uses Hugging Face's Free Inference API to fit within the 512MB RAM limit.
-To eliminate the "cold start" lag (model inactivity), we include a 
+To eliminate the "cold start" lag (model inactivity), we include a
 background task that pings the model every few minutes to keep it warm.
 """
 
@@ -49,7 +49,7 @@ async def embed_texts(texts: list[str]) -> list[list[float]]:
 
             if response.status_code == 200:
                 result = response.json()
-                return cast(list[list[float]], result)
+                return cast("list[list[float]]", result)
 
             elif response.status_code == 503:
                 # Model is loading, wait and retry
