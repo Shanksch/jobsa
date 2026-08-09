@@ -23,6 +23,18 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     document.documentElement.classList.toggle("dark", theme === "dark");
     window.localStorage.setItem(THEME_STORAGE_KEY, theme);
+    window.postMessage({ type: "JOBSA_THEME_SYNC", theme }, "*");
+  }, [theme]);
+
+  useEffect(() => {
+    const handleMessage = (e: MessageEvent) => {
+      if (e.source !== window) return;
+      if (e.data?.type === "JOBSA_THEME_REQUEST") {
+        window.postMessage({ type: "JOBSA_THEME_SYNC", theme }, "*");
+      }
+    };
+    window.addEventListener("message", handleMessage);
+    return () => window.removeEventListener("message", handleMessage);
   }, [theme]);
 
   const toggleTheme = () => setTheme((t) => (t === "dark" ? "light" : "dark"));
