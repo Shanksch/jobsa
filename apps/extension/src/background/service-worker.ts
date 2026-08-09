@@ -183,7 +183,7 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
 });
 
 async function getBackendUrl(): Promise<string> {
-  return 'https://jobsa-backend.onrender.com';
+  return 'https://jobsabackend-jqnflddt.b4a.run';
 }
 
 const MAX_RETRIES = 7;
