@@ -7,6 +7,7 @@ key details (Education, Experience, Skills, Projects, Summary) using an LLM.
 
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 import instructor
 import pymupdf4llm
@@ -145,7 +146,7 @@ Resume content to parse:
 """
 
         try:
-            kwargs = {}
+            kwargs: dict[str, Any] = {}
             if settings.llm_provider == "groq" and settings.groq_api_key:
                 kwargs["api_key"] = settings.groq_api_key
             elif settings.llm_provider == "openai" and settings.openai_api_key:
@@ -155,7 +156,7 @@ Resume content to parse:
             # Using Mode.JSON is much more reliable for complex nested schemas on Groq/Llama
             client = instructor.from_litellm(acompletion, mode=instructor.Mode.JSON)
 
-            response_model: ResumeSections = await client.chat.completions.create(
+            response_model = await client.chat.completions.create(  # type: ignore[misc]
                 model=settings.litellm_model,
                 messages=[
                     {
