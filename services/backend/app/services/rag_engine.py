@@ -87,7 +87,7 @@ async def generate_autofill_answers(
     client = instructor.from_litellm(acompletion)
 
     try:
-        response_model: AutofillResponse = await client.chat.completions.create(
+        response_model: AutofillResponse = await client.chat.completions.create(  # type: ignore[misc]
             model=settings.litellm_model,
             messages=[
                 {"role": "system", "content": system_prompt.strip()},
@@ -177,7 +177,7 @@ async def generate_job_match_score(
     client = instructor.from_litellm(acompletion)
 
     try:
-        response_model: JobMatchResponse = await client.chat.completions.create(
+        response_model: JobMatchResponse = await client.chat.completions.create(  # type: ignore[misc]
             model=settings.litellm_model,
             messages=[
                 {"role": "system", "content": system_prompt.strip()},
