@@ -199,7 +199,7 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
 });
 
 async function getBackendUrl(): Promise<string> {
-  return 'https://jobsa-backend.onrender.com';
+  return 'http://34.41.44.108:8000';
 }
 
 const MAX_RETRIES = 7;

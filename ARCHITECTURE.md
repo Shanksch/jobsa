@@ -240,6 +240,6 @@ All routes require `Authorization: Bearer <supabase_jwt>`.
 | Component | Platform | Notes |
 |---|---|---|
 | Web Dashboard | Vercel | Static SPA, set `VITE_*` env vars |
-| Backend API | Back4App Containers | Docker container via GitHub, set all env vars in dashboard |
+| Backend API | Google Cloud VM | Docker container, set all env vars |
 | Chrome Extension | Chrome Web Store | Build → zip `dist/` → publish |
 | Database/Auth/Storage | Supabase | Already hosted |

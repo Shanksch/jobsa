@@ -254,11 +254,11 @@ Uses Pydantic Settings, loaded from `.env` files. Key settings:
 ## 9. Chrome Extension Details
 - **Manifest Version:** 3
 - **Permissions:** `storage`, `activeTab`
-- **Host Permissions:** `http://localhost:8000/*`, `https://jobsa-backend.onrender.com/*`, `https://xhnzyznqeojaqqzutdfp.supabase.co/*`
+- **Host Permissions:** `http://localhost:8000/*`, `http://34.41.44.108:8000/*`, `https://xhnzyznqeojaqqzutdfp.supabase.co/*`
 - **Content Scripts:**
   - `src/content/index.ts` → Runs on `<all_urls>` (Injects Shadow DOM floating panel UI, handles tracking)
   - `src/content/auth-sync.ts` → Runs on `localhost:5173` and `jobsa-web-dashboard.vercel.app` (token sync with dashboard)
-- **Service Worker:** `src/background/service-worker.ts` (Handles API requests with exponential backoff for Render cold starts, creates/updates applications in Supabase via REST)
+- **Service Worker:** `src/background/service-worker.ts` (Handles API requests, creates/updates applications in Supabase via REST)
 - **Popup:** `src/popup/index.html` (Displays connection status and handles waking-up state)
 
 ## 10. How to Run Locally
@@ -290,7 +290,7 @@ pytest tests/ -v
 | Component | Platform | Notes |
 |---|---|---|
 | Web Dashboard | Vercel | Static SPA, set VITE_* env vars |
-| Backend API | Render | Docker or native Python, set all env vars |
+| Backend API | Google Cloud VM | Docker via SSH, set all env vars |
 | Chrome Extension | Chrome Web Store | Build → zip dist/ → upload ($5 one-time) |
 | Database/Auth | Supabase | Already hosted, update redirect URLs post-deploy |
 
@@ -304,4 +304,4 @@ Key deployment tasks:
 - Implement the "Human Review Shell" in the dashboard.
 - End-to-end testing and polishing frontend integration with the backend REST endpoints.
 - Provide a mechanism for users to update the 'context' field for autofill.
-- Full deployment (Vercel + Render + Chrome Web Store).
+- Full deployment (Vercel + Google Cloud VM + Chrome Web Store).

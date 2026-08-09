@@ -62,7 +62,7 @@
     "storage"
   ],
   "host_permissions": [
-    "https://jobsa-backend.onrender.com/*",
+    "http://34.41.44.108:8000/*",
     "http://localhost:8000/*",
     "https://xhnzyznqeojaqqzutdfp.supabase.co/*"
   ],
