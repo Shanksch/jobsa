@@ -179,7 +179,7 @@
 **Why:**
 - At the current scale (single user, single deployment), microservices add operational overhead (service discovery, inter-service auth, deployment orchestration) with no benefit.
 - The codebase is organized as if it could be split later — `services/` contains isolated modules (`resume_parser`, `storage`, `rag_engine`, `retrieval`, `chunking`, `embeddings`, `ingestion`) with clean interfaces.
-- The monolith can be deployed as a single Docker container on Render's free tier.
+- The monolith can be deployed as a single Docker container on Back4App Containers.
 
 ---
 
@@ -240,6 +240,6 @@ All routes require `Authorization: Bearer <supabase_jwt>`.
 | Component | Platform | Notes |
 |---|---|---|
 | Web Dashboard | Vercel | Static SPA, set `VITE_*` env vars |
-| Backend API | Render | Single Docker container, set all env vars |
+| Backend API | Back4App Containers | Docker container via GitHub, set all env vars in dashboard |
 | Chrome Extension | Chrome Web Store | Build → zip `dist/` → publish |
 | Database/Auth/Storage | Supabase | Already hosted |
