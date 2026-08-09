@@ -187,10 +187,12 @@ Resume content to parse:
 
         structured_sections = await self.structure_resume(markdown)
 
-        print("\n--- DEBUG: EXTRACTED MARKDOWN CONTENT ---")
-        print(f"Length of markdown content: {len(markdown)}")
-        print(markdown[:500])
-        print("-----------------------------------------\n")
+        logger.debug(
+            "resume_text_extracted",
+            markdown_length=len(markdown),
+            preview=markdown[:200],
+        )
+
 
         return ParsedResume(text=text, markdown=markdown, sections=structured_sections)
 

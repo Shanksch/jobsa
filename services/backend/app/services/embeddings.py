@@ -44,7 +44,7 @@ async def embed_texts(texts: list[str]) -> list[list[float]]:
                     timeout=60.0,
                 )
             except httpx.RequestError as exc:
-                print(f"Embedding API request error: {exc}")
+                logger.warning("embedding_api_request_error", error=str(exc))
                 if attempt < max_retries - 1:
                     await asyncio.sleep(2.0)
                     continue
@@ -65,7 +65,7 @@ async def embed_texts(texts: list[str]) -> list[list[float]]:
                 wait_time = min(wait_time, 10.0)
                 await asyncio.sleep(wait_time)
             else:
-                print(f"Embedding API failed with status {response.status_code}: {response.text}")
+                logger.warning("embedding_api_failed", status=response.status_code, body=response.text[:200])
                 return []  # Gracefully fail
 
         return []  # Gracefully fail if max retries exceeded

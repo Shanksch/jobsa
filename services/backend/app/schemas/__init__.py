@@ -1,16 +1,3 @@
 """
-Pydantic schemas — re-export all schemas for convenient imports.
+Pydantic schemas — request/response validation models.
 """
-
-from app.schemas.resume import (
-    ResumeListItem,
-    ResumeResponse,
-    ResumeUpdate,
-)
-
-__all__ = [
-    # Resume
-    "ResumeUpdate",
-    "ResumeListItem",
-    "ResumeResponse",
-]

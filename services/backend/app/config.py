@@ -26,10 +26,6 @@ class Settings(BaseSettings):
     debug: bool = True
     log_level: str = "DEBUG"
 
-    # ─── Database (Supabase PostgreSQL or local) ───────────
-    database_url: str = "postgresql+asyncpg://jobsa:jobsa_dev@localhost:5432/jobsa"
-    database_url_sync: str = "postgresql://jobsa:jobsa_dev@localhost:5432/jobsa"
-
     # ─── Supabase ──────────────────────────────────────────
     supabase_url: str = ""
     supabase_anon_key: str = ""
@@ -54,9 +50,6 @@ class Settings(BaseSettings):
     groq_api_key: str = ""
     openai_api_key: str = ""
     huggingface_api_key: str = ""
-
-    # Ollama fallback (for local dev without API keys)
-    ollama_base_url: str = "http://localhost:11434"
 
     @property
     def litellm_model(self) -> str:
