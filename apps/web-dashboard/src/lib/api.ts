@@ -16,7 +16,7 @@ import type {
 } from "@jobsa/shared";
 
 import { supabase } from "./supabase.js";
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://34.41.44.108:8000";
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL ?? (import.meta.env.DEV ? "http://34.41.44.108:8000" : "");
 
 export class BackendWakingUpError extends Error {
   constructor(attempt: number, maxAttempts: number) {
