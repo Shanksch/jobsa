@@ -65,7 +65,9 @@ async def embed_texts(texts: list[str]) -> list[list[float]]:
                 wait_time = min(wait_time, 10.0)
                 await asyncio.sleep(wait_time)
             else:
-                logger.warning("embedding_api_failed", status=response.status_code, body=response.text[:200])
+                logger.warning(
+                    "embedding_api_failed", status=response.status_code, body=response.text[:200]
+                )
                 return []  # Gracefully fail
 
         return []  # Gracefully fail if max retries exceeded

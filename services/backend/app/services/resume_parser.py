@@ -194,7 +194,6 @@ Resume content to parse:
             preview=markdown[:200],
         )
 
-
         return ParsedResume(text=text, markdown=markdown, sections=structured_sections)
 
 

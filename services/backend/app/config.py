@@ -37,8 +37,9 @@ class Settings(BaseSettings):
         """Check if Supabase credentials are provided."""
         return bool(self.supabase_url and self.supabase_anon_key)
 
-    # ─── CORS ──────────────────────────────────────────────
-    cors_origins: str = "https://jobsa-web-dashboard.vercel.app,chrome-extension://,https://*.b4a.run"
+    cors_origins: str = (
+        "https://jobsa-web-dashboard.vercel.app,chrome-extension://,https://*.b4a.run"
+    )
 
     @property
     def cors_origin_list(self) -> list[str]:
