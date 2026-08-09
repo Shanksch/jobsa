@@ -25,9 +25,24 @@ window.addEventListener("message", (event) => {
       }
     );
   }
+
+  if (event.data && event.data.type === 'JOBSA_THEME_SYNC') {
+    const theme = event.data.theme;
+    chrome.runtime.sendMessage(
+      { action: "save_theme", theme },
+      () => {
+        if (chrome.runtime.lastError) {
+          console.debug("[JobSA Theme Sync] Background script not ready or error:", chrome.runtime.lastError.message);
+        } else {
+          console.debug("[JobSA Theme Sync] Theme synced to extension:", theme);
+        }
+      }
+    );
+  }
 });
 
-// Request token immediately in case we loaded after the web app initialized
+// Request token and theme immediately in case we loaded after the web app initialized
 window.postMessage({ type: 'JOBSA_AUTH_REQUEST' }, '*');
+window.postMessage({ type: 'JOBSA_THEME_REQUEST' }, '*');
 
-console.log("[JobSA] Auth sync listener initialized.");
+console.log("[JobSA] Auth & Theme sync listener initialized.");

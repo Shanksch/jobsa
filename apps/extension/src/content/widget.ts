@@ -61,6 +61,17 @@ function injectWidget() {
 
   const shadow = host.attachShadow({ mode: 'open' });
 
+  // Load and listen for theme
+  chrome.storage.local.get(['jobsa_theme'], (res) => {
+    if (res.jobsa_theme === 'dark') host.classList.add('dark');
+  });
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === 'local' && changes.jobsa_theme) {
+      if (changes.jobsa_theme.newValue === 'dark') host.classList.add('dark');
+      else host.classList.remove('dark');
+    }
+  });
+
   const style = document.createElement('style');
   style.textContent = WIDGET_CSS;
   shadow.appendChild(style);
@@ -378,31 +389,37 @@ function extractFormSchema(): FormField[] {
 
 const WIDGET_CSS = `
   @keyframes spin { to { transform: rotate(360deg); } }
-  :host { all: initial; position: fixed; z-index: 2147483647; bottom: 0; right: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  :host { 
+    all: initial; position: fixed; z-index: 2147483647; bottom: 0; right: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
+    --w-bg: #fff; --w-text: #1a1a1a; --w-border: rgba(0,0,0,.06); --w-shadow: rgba(0,0,0,.1);
+  }
+  :host(.dark) {
+    --w-bg: #0f1117; --w-text: #e4e4e7; --w-border: #27272a; --w-shadow: rgba(0,0,0,.5);
+  }
 
   .fab {
     position: fixed; bottom: 24px; right: 24px;
     width: 54px; height: 54px; border-radius: 50%;
-    background: #fff; border: 1px solid rgba(0,0,0,.08);
-    box-shadow: 0 4px 16px rgba(0,0,0,.12);
+    background: var(--w-bg); border: 1px solid var(--w-border);
+    box-shadow: 0 4px 16px var(--w-shadow);
     cursor: pointer; display: flex; align-items: center; justify-content: center;
     transition: transform .2s cubic-bezier(.34,1.56,.64,1), box-shadow .2s;
     z-index: 2;
   }
-  .fab:hover { transform: scale(1.08); box-shadow: 0 6px 24px rgba(0,0,0,.16); }
+  .fab:hover { transform: scale(1.08); box-shadow: 0 6px 24px var(--w-shadow); }
   .fab:active { transform: scale(.95); }
   .fab img { width: 34px; height: 34px; object-fit: contain; pointer-events: none; }
   .fab.open { display: none; }
-  .dot { position: absolute; top: -1px; right: -1px; width: 12px; height: 12px; border-radius: 50%; background: #f59e0b; border: 2px solid #fff; }
+  .dot { position: absolute; top: -1px; right: -1px; width: 12px; height: 12px; border-radius: 50%; background: #f59e0b; border: 2px solid var(--w-bg); }
 
   .panel {
     position: fixed; top: 12px; right: 12px;
     width: 380px; height: calc(100vh - 24px); max-height: calc(100vh - 24px);
-    border-radius: 16px; background: #fff;
-    border: 1px solid rgba(0,0,0,.06);
-    box-shadow: -10px 0 40px rgba(0,0,0,.1);
+    border-radius: 16px; background: var(--w-bg);
+    border: 1px solid var(--w-border);
+    box-shadow: -10px 0 40px var(--w-shadow);
     display: flex; flex-direction: column;
-    font-size: 14px; color: #1a1a1a; line-height: 1.5;
+    font-size: 14px; color: var(--w-text); line-height: 1.5;
     z-index: 1;
     opacity: 0; transform: translateX(100%);
     transition: opacity .3s cubic-bezier(.16,1,.3,1), transform .3s cubic-bezier(.16,1,.3,1);

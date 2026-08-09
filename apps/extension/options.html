@@ -4,6 +4,13 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>JobSA — Settings</title>
+  <script>
+    chrome.storage.local.get(['jobsa_theme'], function(result) {
+      if (result.jobsa_theme === 'dark') {
+        document.documentElement.classList.add('dark');
+      }
+    });
+  </script>
   <style>
     * {
       margin: 0;
@@ -15,9 +22,14 @@
       max-width: 520px;
       margin: 40px auto;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: #f4f4f5; /* zinc-100 */
+      color: #18181b; /* zinc-900 */
+      padding: 32px;
+    }
+
+    html.dark body {
       background: #0f1117;
       color: #e4e4e7;
-      padding: 32px;
     }
 
     h1 {
@@ -29,17 +41,26 @@
 
     .subtitle {
       font-size: 13px;
-      color: #71717a;
+      color: #52525b; /* zinc-600 */
       margin-bottom: 32px;
       line-height: 1.5;
     }
 
+    html.dark .subtitle {
+      color: #71717a;
+    }
+
     /* ── Toggle card ── */
     .card {
-      background: #18181b;
-      border: 1px solid #27272a;
+      background: #ffffff;
+      border: 1px solid #e4e4e7; /* zinc-200 */
       border-radius: 12px;
       padding: 20px 24px;
+    }
+
+    html.dark .card {
+      background: #18181b;
+      border: 1px solid #27272a;
     }
 
     .toggle-row {
@@ -57,14 +78,22 @@
       display: block;
       font-size: 14px;
       font-weight: 600;
-      color: #f4f4f5;
+      color: #09090b; /* zinc-950 */
       margin-bottom: 4px;
+    }
+
+    html.dark .toggle-label strong {
+      color: #f4f4f5;
     }
 
     .toggle-label span {
       font-size: 12px;
-      color: #a1a1aa;
+      color: #71717a; /* zinc-500 */
       line-height: 1.4;
+    }
+
+    html.dark .toggle-label span {
+      color: #a1a1aa;
     }
 
     /* ── Custom switch ── */
@@ -84,10 +113,14 @@
     .slider {
       position: absolute;
       inset: 0;
-      background: #3f3f46;
+      background: #e4e4e7; /* zinc-200 */
       border-radius: 24px;
       cursor: pointer;
       transition: background 0.25s ease;
+    }
+
+    html.dark .slider {
+      background: #3f3f46;
     }
 
     .slider::before {
@@ -119,9 +152,13 @@
     #status {
       margin-top: 16px;
       font-size: 12px;
-      color: #a1a1aa;
+      color: #52525b;
       min-height: 18px;
       transition: color 0.2s ease;
+    }
+
+    html.dark #status {
+      color: #a1a1aa;
     }
 
     #status.success {
@@ -139,24 +176,37 @@
     .info {
       margin-top: 24px;
       padding: 16px;
+      background: #f4f4f5; /* zinc-100 */
+      border: 1px solid #e4e4e7; /* zinc-200 */
+      border-radius: 10px;
+    }
+
+    html.dark .info {
       background: #1c1c22;
       border: 1px solid #27272a;
-      border-radius: 10px;
     }
 
     .info h3 {
       font-size: 12px;
       font-weight: 600;
-      color: #a1a1aa;
+      color: #52525b; /* zinc-600 */
       text-transform: uppercase;
       letter-spacing: 0.05em;
       margin-bottom: 8px;
     }
 
+    html.dark .info h3 {
+      color: #a1a1aa;
+    }
+
     .info p {
       font-size: 12px;
-      color: #71717a;
+      color: #3f3f46; /* zinc-700 */
       line-height: 1.6;
+    }
+
+    html.dark .info p {
+      color: #71717a;
     }
 
     .permission-badge {

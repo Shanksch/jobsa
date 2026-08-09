@@ -100,6 +100,14 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     return true;
   }
 
+  if (message.action === "save_theme") {
+    if (message.theme) {
+      chrome.storage.local.set({ jobsa_theme: message.theme });
+    }
+    sendResponse({ success: true });
+    return true;
+  }
+
   if (message.action === "autofill") {
     handleAutofill(message.payload)
       .then(response => sendResponse(response))
@@ -171,6 +179,14 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
       chrome.storage.local.set({ sb_auth_token: message.token });
     } else {
       chrome.storage.local.remove("sb_auth_token");
+    }
+    sendResponse({ success: true });
+    return true;
+  }
+
+  if (message.action === "save_theme") {
+    if (message.theme) {
+      chrome.storage.local.set({ jobsa_theme: message.theme });
     }
     sendResponse({ success: true });
     return true;
