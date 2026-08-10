@@ -26,7 +26,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setUser(session?.user ?? null);
       setIsLoading(false);
       
-      syncTokenToExtension(session?.access_token || null);
+      syncTokenToExtension(
+        session?.access_token || null,
+        session?.refresh_token || null
+      );
     });
 
     const {
@@ -36,7 +39,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setUser(session?.user ?? null);
       setIsLoading(false);
       
-      syncTokenToExtension(session?.access_token || null);
+      syncTokenToExtension(
+        session?.access_token || null,
+        session?.refresh_token || null
+      );
     });
 
     return () => {

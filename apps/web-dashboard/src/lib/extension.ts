@@ -35,15 +35,20 @@ export async function isExtensionInstalled(): Promise<boolean> {
 }
 
 /**
- * Send the Supabase auth token to the extension's background service worker.
+ * Send the Supabase auth token + refresh token to the extension's background
+ * service worker. The refresh token allows the extension to independently
+ * renew its session without needing the dashboard open.
  * Silently fails if the extension is not installed.
  */
-export function syncTokenToExtension(token: string | null): void {
+export function syncTokenToExtension(
+  token: string | null,
+  refreshToken?: string | null
+): void {
   if (typeof chrome === "undefined" || !chrome.runtime?.sendMessage) return;
   try {
     chrome.runtime.sendMessage(
       EXTENSION_ID,
-      { action: "save_token", token },
+      { action: "save_token", token, refresh_token: refreshToken ?? null },
       () => {
         // Silently ignore errors (extension not installed, etc.)
         if (chrome.runtime.lastError) {

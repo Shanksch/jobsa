@@ -92,9 +92,11 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 
   if (message.action === "save_token") {
     if (message.token) {
-      chrome.storage.local.set({ sb_auth_token: message.token });
+      const data: Record<string, string> = { sb_auth_token: message.token };
+      if (message.refresh_token) data.sb_refresh_token = message.refresh_token;
+      chrome.storage.local.set(data);
     } else {
-      chrome.storage.local.remove("sb_auth_token");
+      chrome.storage.local.remove(["sb_auth_token", "sb_refresh_token"]);
     }
     sendResponse({ success: true });
     return true;
@@ -176,9 +178,11 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
 
   if (message.action === "save_token") {
     if (message.token) {
-      chrome.storage.local.set({ sb_auth_token: message.token });
+      const data: Record<string, string> = { sb_auth_token: message.token };
+      if (message.refresh_token) data.sb_refresh_token = message.refresh_token;
+      chrome.storage.local.set(data);
     } else {
-      chrome.storage.local.remove("sb_auth_token");
+      chrome.storage.local.remove(["sb_auth_token", "sb_refresh_token"]);
     }
     sendResponse({ success: true });
     return true;
@@ -229,16 +233,105 @@ async function fetchWithRetry(url: string, options: RequestInit): Promise<Respon
   throw new Error('Backend is still waking up or unreachable. Please try again in a moment.');
 }
 
+// ---------------------------------------------------------------------------
+// Token auto-refresh: keeps the extension authenticated without the dashboard
+// ---------------------------------------------------------------------------
+
+/**
+ * Decode a JWT and return its payload. Does NOT verify the signature
+ * (Supabase/backend does that). We only need the `exp` claim.
+ */
+function decodeJwtPayload(token: string): { exp?: number; sub?: string } {
+  try {
+    const base64 = token.split('.')[1]!;
+    return JSON.parse(atob(base64));
+  } catch {
+    return {};
+  }
+}
+
+/**
+ * Returns a valid access token, refreshing it automatically if it has
+ * expired (or will expire within the next 5 minutes).
+ *
+ * Returns `null` if no tokens are stored or refresh fails.
+ */
+async function getValidToken(): Promise<string | null> {
+  const { sb_auth_token, sb_refresh_token } =
+    await chrome.storage.local.get(["sb_auth_token", "sb_refresh_token"]);
+
+  if (!sb_auth_token) return null;
+
+  // Check if the current token is still valid (with 5-min buffer)
+  const payload = decodeJwtPayload(sb_auth_token);
+  const now = Math.floor(Date.now() / 1000);
+  const BUFFER_SECONDS = 300; // refresh 5 min before real expiry
+
+  if (payload.exp && payload.exp - BUFFER_SECONDS > now) {
+    // Token is still fresh
+    return sb_auth_token;
+  }
+
+  // Token expired or expiring soon — try to refresh
+  if (!sb_refresh_token) {
+    console.warn("[JobSA] Token expired and no refresh token available");
+    chrome.storage.local.remove(["sb_auth_token", "sb_refresh_token"]);
+    return null;
+  }
+
+  console.log("[JobSA] Access token expired, refreshing…");
+
+  try {
+    const res = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "apikey": SUPABASE_ANON_KEY,
+      },
+      body: JSON.stringify({ refresh_token: sb_refresh_token }),
+    });
+
+    if (!res.ok) {
+      console.error("[JobSA] Refresh failed:", res.status);
+      chrome.storage.local.remove(["sb_auth_token", "sb_refresh_token"]);
+      return null;
+    }
+
+    const data = await res.json();
+    const newAccessToken = data.access_token;
+    const newRefreshToken = data.refresh_token;
+
+    if (!newAccessToken) {
+      console.error("[JobSA] Refresh response missing access_token");
+      chrome.storage.local.remove(["sb_auth_token", "sb_refresh_token"]);
+      return null;
+    }
+
+    // Persist the fresh tokens
+    await chrome.storage.local.set({
+      sb_auth_token: newAccessToken,
+      sb_refresh_token: newRefreshToken || sb_refresh_token,
+    });
+
+    console.log("[JobSA] Token refreshed successfully");
+    return newAccessToken;
+  } catch (err) {
+    console.error("[JobSA] Token refresh error:", err);
+    chrome.storage.local.remove(["sb_auth_token", "sb_refresh_token"]);
+    return null;
+  }
+}
+
 async function handleAutofill(payload: any) {
   const BACKEND_URL = await getBackendUrl();
-  const { sb_auth_token } = await chrome.storage.local.get("sb_auth_token");
+  const token = await getValidToken();
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
     "Accept": "application/json"
   };
 
-  if (sb_auth_token) {
-    headers["Authorization"] = `Bearer ${sb_auth_token}`;
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
   }
 
   const body: any = { url: payload.url, fields: payload.fields };
@@ -268,14 +361,14 @@ async function handleAutofill(payload: any) {
 
 async function handleJobMatch(payload: any) {
   const BACKEND_URL = await getBackendUrl();
-  const { sb_auth_token } = await chrome.storage.local.get("sb_auth_token");
+  const token = await getValidToken();
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
     "Accept": "application/json"
   };
 
-  if (sb_auth_token) {
-    headers["Authorization"] = `Bearer ${sb_auth_token}`;
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
   }
 
   const response = await fetchWithRetry(`${BACKEND_URL}/api/match`, {
@@ -303,14 +396,14 @@ async function handleJobMatch(payload: any) {
 
 async function handleListResumes() {
   const BACKEND_URL = await getBackendUrl();
-  const { sb_auth_token } = await chrome.storage.local.get("sb_auth_token");
+  const token = await getValidToken();
   const headers: Record<string, string> = {
     "Accept": "application/json"
   };
-  if (!sb_auth_token) {
-    throw new Error("Auth token missing. Please open or refresh the JobSA dashboard to sync your account.");
+  if (!token) {
+    throw new Error("Session expired. Please log in again from the JobSA dashboard.");
   }
-  headers["Authorization"] = `Bearer ${sb_auth_token}`;
+  headers["Authorization"] = `Bearer ${token}`;
   const response = await fetchWithRetry(`${BACKEND_URL}/api/resumes`, {
     method: "GET",
     headers
@@ -332,11 +425,14 @@ async function handleCreateApplication(payload: {
   resume_id?: string;
   generated_answers?: Record<string, string>;
 }) {
-  const { sb_auth_token } = await chrome.storage.local.get("sb_auth_token");
-  if (!sb_auth_token) throw new Error("Not authenticated");
+  const sb_auth_token = await getValidToken();
+  if (!sb_auth_token) throw new Error("Session expired. Please log in again from the JobSA dashboard.");
 
   // Decode JWT to get user ID (sub claim)
-  const tokenPayload = JSON.parse(atob(sb_auth_token.split('.')[1]));
+  const jwtParts = sb_auth_token.split('.');
+  const jwtPayloadStr = jwtParts[1];
+  if (!jwtPayloadStr) throw new Error("Invalid token format.");
+  const tokenPayload = JSON.parse(atob(jwtPayloadStr));
   const userId = tokenPayload.sub;
 
   const response = await fetch(`${SUPABASE_URL}/rest/v1/applications`, {
@@ -374,8 +470,8 @@ async function handleUpdateApplication(payload: {
   status: string;
   applied_at?: string;
 }) {
-  const { sb_auth_token } = await chrome.storage.local.get("sb_auth_token");
-  if (!sb_auth_token) throw new Error("Not authenticated");
+  const sb_auth_token = await getValidToken();
+  if (!sb_auth_token) throw new Error("Session expired. Please log in again from the JobSA dashboard.");
 
   const updateData: Record<string, any> = {
     status: payload.status,
