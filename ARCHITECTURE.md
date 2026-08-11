@@ -13,7 +13,7 @@
   - [2. Supabase as Unified Backend-as-a-Service](#2-supabase-as-unified-backend-as-a-service)
   - [3. Hybrid Data Access Pattern](#3-hybrid-data-access-pattern)
   - [4. Groq (Llama 3.1 8B) via LiteLLM](#4-groq-llama-31-8b-via-litellm)
-  - [5. Local Embeddings with FastEmbed](#5-local-embeddings-with-fastembed-nomic-embed-text-v15)
+  - [5. Remote Embeddings with Gemini](#5-remote-embeddings-with-gemini-gemini-embedding-001)
   - [6. RAG Pipeline: Selective Retrieval over Full-Context Stuffing](#6-rag-pipeline-selective-retrieval-over-full-context-stuffing)
   - [7. Two-Stage Resume Parsing](#7-two-stage-resume-parsing)
   - [8. Authentication Flow: Supabase-First with Auto-Profile Creation](#8-authentication-flow-supabase-first-with-auto-profile-creation)
@@ -77,14 +77,14 @@
 - **Instructor for structured output:** Resume parsing uses `instructor.from_litellm()` with a Pydantic `ResumeSections` model to guarantee the LLM returns valid structured JSON. This is more reliable than manual JSON parsing with regex fallbacks.
 - **Cost:** Groq's free tier provides ~30 RPM — sufficient for development and early usage.
 
-### 5. Local Embeddings with FastEmbed (nomic-embed-text-v1.5)
+### 5. Remote Embeddings with Gemini (gemini-embedding-001)
 
-**Choice:** Embeddings are generated locally using `fastembed` with the `nomic-ai/nomic-embed-text-v1.5` model (768 dimensions), rather than calling an external embedding API.
+**Choice:** Embeddings are generated using the `google-genai` SDK with the `gemini-embedding-001` model (768 dimensions), rather than a local FastEmbed setup.
 
 **Why:**
-- **Zero latency, zero cost:** Embedding calls happen in-process with no network round trips. The model is small (~130 MB) and loads once.
-- **Async wrapper:** The synchronous `fastembed` library is wrapped in `asyncio.run_in_executor()` with a 2-thread pool to avoid blocking the FastAPI event loop.
-- **Batch-first API:** `embed_texts()` is the primary interface; `embed_text()` is a convenience wrapper. The retrieval module batches all form field labels into a single `embed_texts()` call rather than one embedding call per field.
+- **Quality and scaling:** Offloading embeddings to Google allows high-quality matryoshka representation embeddings, using `output_dimensionality` to strictly cap vectors at 768 dims with L2 normalization applied on our end to match pgvector schema.
+- **Batching API:** The `batchEmbedContents` API reduces network round trips when a user's resume is broken into multiple semantic chunks.
+- **Unified config:** Configuration is managed natively through Gemini, unifying the embedding generation instead of relying on legacy HF or local models.
 
 ### 6. RAG Pipeline: Selective Retrieval over Full-Context Stuffing
 
@@ -92,7 +92,7 @@
 
 **Why:**
 - **Token efficiency:** A user with 5 work experiences, 10 projects, and a 3-page resume would generate a massive context window if everything were included. Selective retrieval via pgvector keeps context small and relevant.
-- **Ingestion design (`ingestion.py`):** Structured knowledge-base rows (one job, one project, one degree) are embedded as single chunks — they're already self-contained units. Only the raw resume text goes through `chunk_text()` splitting (800-char chunks with 150-char overlap).
+- **Ingestion design (`ingestion.py`):** Structured knowledge-base rows (one job, one project, one degree) are embedded as single chunks — they're already self-contained units. The raw resume text undergoes semantic chunking using Gemini (`gemini-3.6-flash`), intelligently splitting it based on logical boundaries (jobs, degrees, sections), falling back to character-based overlapping chunks if the LLM fails.
 - **Skills are special-cased:** Individual skills ("Python", "React") carry almost no embeddable meaning in isolation. They're combined into a single "Skills: Python (advanced); React (intermediate - 3 years); ..." chunk.
 - **Deduplication:** The retrieval layer deduplicates chunks with >70% word overlap to prevent the LLM from seeing near-identical context from both the raw resume chunk and a structured knowledge-base entry.
 - **Full wipe-and-rebuild:** `reindex_profile()` deletes all chunks for a profile and rebuilds from scratch. This is fine at the scale of one person's career history (dozens of chunks, milliseconds of work) and avoids stale-chunk bugs.
@@ -181,6 +181,33 @@
 - The codebase is organized as if it could be split later — `services/` contains isolated modules (`resume_parser`, `storage`, `rag_engine`, `retrieval`, `chunking`, `embeddings`, `ingestion`) with clean interfaces.
 - The monolith can be deployed as a single Docker container on Back4App Containers.
 
+### 15. Langfuse for LLM Observability
+
+**Choice:** Langfuse integrated via `@observe` decorators and LiteLLM callbacks for all LLM generations (parsing, autofill, match).
+
+**Why:**
+- Provides deep visibility into LLM latency, cost, and generation quality.
+- Simplifies debugging complex prompts and tracking tokens.
+- LiteLLM native integration requires minimal code changes.
+
+### 16. Python Dependency Management with `uv`
+
+**Choice:** Migrated backend Python dependencies to use `uv` and `uv.lock`.
+
+**Why:**
+- Significantly faster dependency resolution and installations compared to standard `pip`.
+- Deterministic builds via `uv.lock`.
+- Modern, Rust-based tooling that aligns with the speed goals of Turborepo in the frontend.
+
+### 17. Rigorous Job Match Scoring
+
+**Choice:** Added a dedicated `/api/match` RAG pipeline that evaluates a candidate against a job description.
+
+**Why:**
+- Evaluates resumes strictly based on concrete evidence without hallucinating skills.
+- Uses `instructor` to guarantee a structured evaluation rubric (category scores, missing requirements).
+- Helps candidates tailor their resumes before applying by highlighting gaps.
+
 ---
 
 ## Tech Stack
@@ -195,8 +222,11 @@
 | **Backend** | FastAPI, Pydantic v2, structlog | Async-native, automatic OpenAPI docs, structured logging |
 | **Database** | Supabase (PostgreSQL + pgvector) | Managed hosting, vector search, RLS, Auth, Storage |
 | **LLM** | Groq (Llama 3.1 8B) via LiteLLM | Free tier, provider-agnostic abstraction |
-| **Embeddings** | FastEmbed (nomic-embed-text-v1.5) | Local, zero-cost, 768-dim vectors |
+| **Observability** | Langfuse | Tracing, token counting, and debugging LLM calls |
+| **Embeddings** | Gemini (gemini-embedding-001) | Remote batching, 768-dim L2 normalized vectors |
+| **Chunking** | Gemini (gemini-3.6-flash) | Intelligent semantic chunking of unstructured text |
 | **Resume Parsing** | pymupdf4llm + instructor | PDF → Markdown → structured JSON via LLM |
+| **Backend Deps** | uv | Ultra-fast Python package installer and resolver |
 | **CI/CD** | GitHub Actions | Lint + typecheck + test on every push |
 
 ---
@@ -218,6 +248,7 @@ All routes require `Authorization: Bearer <supabase_jwt>`.
 | `GET` | `/api/resumes/:id/download` | Download resume file |
 | `POST` | `/api/resumes/:id/import` | Parse resume → import to knowledge base |
 | `POST` | `/api/autofill` | RAG-based form field answer generation |
+| `POST` | `/api/match` | Evaluate candidate profile against a job description |
 
 ### Direct Supabase Access (Frontend → RLS)
 

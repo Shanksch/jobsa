@@ -50,7 +50,23 @@ class Settings(BaseSettings):
     llm_model: str = "llama-3.1-8b-instant"
     groq_api_key: str = ""
     openai_api_key: str = ""
-    huggingface_api_key: str = ""
+    openai_api_base: str = ""
+    gemini_api_key: str = ""
+    
+    # ─── Embeddings & Chunking (Gemini) ─────────────────────
+    embedding_model: str = "gemini-embedding-001"
+    embedding_dimensions: int = 768
+    chunking_model: str = "gemini-3.6-flash"
+
+    # ─── Langfuse ──────────────────────────────────────────
+    langfuse_public_key: str = ""
+    langfuse_secret_key: str = ""
+    langfuse_host: str = "https://cloud.langfuse.com"
+
+    @property
+    def langfuse_enabled(self) -> bool:
+        return bool(self.langfuse_public_key and self.langfuse_secret_key)
+
 
     @property
     def litellm_model(self) -> str:
@@ -80,9 +96,17 @@ if settings.groq_api_key:
     os.environ["GROQ_API_KEY"] = settings.groq_api_key
 if settings.openai_api_key:
     os.environ["OPENAI_API_KEY"] = settings.openai_api_key
+if settings.openai_api_base:
+    os.environ["OPENAI_API_BASE"] = settings.openai_api_base
 if settings.supabase_url:
     os.environ["SUPABASE_URL"] = settings.supabase_url
 if settings.supabase_anon_key:
     os.environ["SUPABASE_ANON_KEY"] = settings.supabase_anon_key
-if settings.huggingface_api_key:
-    os.environ["HUGGINGFACE_API_KEY"] = settings.huggingface_api_key
+if settings.gemini_api_key:
+    os.environ["GEMINI_API_KEY"] = settings.gemini_api_key
+if settings.langfuse_public_key:
+    os.environ["LANGFUSE_PUBLIC_KEY"] = settings.langfuse_public_key
+if settings.langfuse_secret_key:
+    os.environ["LANGFUSE_SECRET_KEY"] = settings.langfuse_secret_key
+if settings.langfuse_host:
+    os.environ["LANGFUSE_HOST"] = settings.langfuse_host

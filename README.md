@@ -140,7 +140,7 @@ graph TB
 | 🐍 Backend | FastAPI · Pydantic v2 · structlog |
 | 🗄️ Database | Supabase (PostgreSQL + pgvector + Auth + Storage) |
 | 🤖 LLM | Groq (Llama 3.1 8B) via LiteLLM |
-| 🔢 Embeddings | FastEmbed (nomic-embed-text-v1.5) |
+| 🔢 Embeddings | Gemini (gemini-embedding-001) |
 | 📄 Resume Parsing | pymupdf4llm + instructor |
 | 🚀 CI/CD | GitHub Actions |
 

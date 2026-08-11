@@ -9,6 +9,7 @@ distance.
 
 from app.core.auth import supabase
 from app.services.embeddings import embed_text, embed_texts
+from langfuse import observe
 
 
 def _search(profile_id: str, query_embedding: list[float], top_k: int) -> list[dict]:
@@ -23,6 +24,7 @@ def _search(profile_id: str, query_embedding: list[float], top_k: int) -> list[d
     return res.data or []
 
 
+@observe(name="retrieve-relevant-chunks")
 async def retrieve_relevant_chunks(
     profile_id: str,
     query: str,
@@ -32,10 +34,11 @@ async def retrieve_relevant_chunks(
     Returns up to `top_k` chunks, each shaped like:
     {id, source, source_id, chunk_text, similarity}
     """
-    query_embedding = await embed_text(query)
+    query_embedding = await embed_text(query, task_type="RETRIEVAL_QUERY")
     return _search(profile_id, query_embedding, top_k)
 
 
+@observe(name="retrieve-chunks")
 async def retrieve_for_form(
     profile_id: str,
     field_labels: list[str],
@@ -54,7 +57,7 @@ async def retrieve_for_form(
     if not field_labels:
         return []
 
-    embeddings = await embed_texts(field_labels)
+    embeddings = await embed_texts(field_labels, task_type="RETRIEVAL_QUERY")
 
     seen: dict[str, dict] = {}
     for embedding in embeddings:

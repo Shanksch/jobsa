@@ -17,7 +17,7 @@ noticeably slow.
 """
 
 from app.core.auth import supabase
-from app.services.chunking import chunk_text
+from app.services.chunking import chunk_text_semantic
 from app.services.embeddings import embed_texts
 
 
@@ -115,7 +115,7 @@ async def reindex_profile(profile_id: str) -> int:
     sources: list[tuple[str, str | None, str]] = []  # (source, source_id, text)
 
     # Primary resume — the only free-form long text, so the only thing
-    # that actually needs chunk_text() splitting.
+    # that actually needs chunk_text_semantic() splitting.
     resume_res = (
         supabase.table("resumes")
         .select("id, parsed_text")
@@ -125,7 +125,8 @@ async def reindex_profile(profile_id: str) -> int:
     )
     if resume_res.data and resume_res.data[0].get("parsed_text"):
         resume = resume_res.data[0]
-        for piece in chunk_text(resume["parsed_text"]):
+        chunks = await chunk_text_semantic(resume["parsed_text"])
+        for piece in chunks:
             sources.append(("resume", resume["id"], piece))
 
     # Structured knowledge-base rows — each row is already a self
@@ -192,8 +193,10 @@ async def reindex_profile(profile_id: str) -> int:
             "source_id": source_id,
             "chunk_text": text,
             "embedding": embedding,
+            "task_type": "RETRIEVAL_DOCUMENT",
+            "chunk_index": i,
         }
-        for (source, source_id, text), embedding in zip(sources, embeddings)
+        for i, ((source, source_id, text), embedding) in enumerate(zip(sources, embeddings))
     ]
 
     if not rows:

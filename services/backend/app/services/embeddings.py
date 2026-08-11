@@ -1,102 +1,74 @@
 """
 Embeddings client wrapper.
 
-Uses Hugging Face's Free Inference API to fit within the 512MB RAM limit.
-To eliminate the "cold start" lag (model inactivity), we include a
-background task that pings the model every few minutes to keep it warm.
+Uses Google GenAI SDK to generate embeddings via gemini-embedding-001,
+truncating vectors to 768 dimensions using Matryoshka representation learning.
+Applies manual L2 normalization to the truncated vectors.
 """
 
-import asyncio
-import os
-from typing import cast
-
-import httpx
+import math
+from google import genai
+from google.genai import types
 import structlog
+from typing import cast
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
+
+from app.config import settings
+from langfuse import observe
 
 logger = structlog.get_logger()
 
-EMBEDDING_API_URL = "https://api-inference.huggingface.co/pipeline/feature-extraction/sentence-transformers/all-MiniLM-L6-v2"
-EMBEDDING_DIM = 384
+# We initialize the client inside or at module level, but we need the API key to be set.
+# The API key is propagated to os.environ["GEMINI_API_KEY"] in config.py.
+client = genai.Client()
 
-
-async def embed_texts(texts: list[str]) -> list[list[float]]:
+@observe(name="embed-texts")
+@retry(
+    stop=stop_after_attempt(5),
+    wait=wait_exponential(multiplier=1, min=2, max=10),
+    # In a real app we'd filter for 429/5xx, but for safety retry any Exception briefly
+)
+async def embed_texts(texts: list[str], task_type: str = "RETRIEVAL_DOCUMENT") -> list[list[float]]:
     """
-    Embed a batch of strings using the Hugging Face Free Inference API.
-    Returns one vector per input string.
+    Embed a batch of strings using Gemini.
+    Returns one vector per input string, truncated to 768 dimensions and L2 normalized.
     """
     if not texts:
         return []
 
-    headers = {}
-    hf_token = os.environ.get("HUGGINGFACE_API_KEY")
-    if hf_token:
-        headers["Authorization"] = f"Bearer {hf_token}"
+    try:
+        response = await client.aio.models.embed_content(
+            model=settings.embedding_model,
+            contents=texts,
+            config=types.EmbedContentConfig(
+                output_dimensionality=settings.embedding_dimensions,
+                task_type=task_type,
+            )
+        )
+        
+        vectors = []
+        for embedding_obj in response.embeddings:
+            vector = embedding_obj.values
+            
+            # Manual L2 normalization is required for gemini-embedding-001 truncated vectors
+            norm = math.sqrt(sum(v * v for v in vector))
+            if norm > 0:
+                vector = [v / norm for v in vector]
+                
+            vectors.append(vector)
+            
+        return vectors
+    except Exception as e:
+        logger.error("embedding_generation_failed", error=str(e))
+        raise  # Let tenacity retry it
 
-    async with httpx.AsyncClient() as client:
-        # Retry logic for cold starts (503) and connection errors
-        max_retries = 5
-        for attempt in range(max_retries):
-            try:
-                response = await client.post(
-                    EMBEDDING_API_URL,
-                    headers=headers,
-                    json={"inputs": texts, "options": {"wait_for_model": True}},
-                    timeout=60.0,
-                )
-            except httpx.RequestError as exc:
-                logger.warning("embedding_api_request_error", error=str(exc))
-                if attempt < max_retries - 1:
-                    await asyncio.sleep(2.0)
-                    continue
-                return []  # Gracefully fail
-
-            if response.status_code == 200:
-                result = response.json()
-                return cast("list[list[float]]", result)
-
-            elif response.status_code == 503:
-                # Model is loading, wait and retry
-                try:
-                    error_data = response.json()
-                    wait_time = error_data.get("estimated_time", 10.0)
-                except Exception:
-                    wait_time = 10.0
-
-                wait_time = min(wait_time, 10.0)
-                await asyncio.sleep(wait_time)
-            else:
-                logger.warning(
-                    "embedding_api_failed", status=response.status_code, body=response.text[:200]
-                )
-                return []  # Gracefully fail
-
-        return []  # Gracefully fail if max retries exceeded
-
-
-async def embed_text(text: str) -> list[float]:
+async def embed_text(text: str, task_type: str = "RETRIEVAL_DOCUMENT") -> list[float]:
     """Embed a single string."""
-    vectors = await embed_texts([text])
+    vectors = await embed_texts([text], task_type=task_type)
     if vectors and len(vectors) > 0:
         return vectors[0]
     return []
 
-
-async def _keep_alive_task():
-    """Pings the HF model every 4 minutes to prevent it from going to sleep."""
-    while True:
-        try:
-            # Send a tiny dummy request to keep the model warm in HF's cache
-            logger.info("pinging_huggingface_api_to_keep_warm")
-            await embed_text("keep_warm")
-        except Exception as e:
-            logger.warning("huggingface_keep_alive_failed", error=str(e))
-        # Hugging Face usually unloads models after ~5-10 minutes of inactivity
-        await asyncio.sleep(240)
-
-
 def start_embedding_keep_alive():
-    """
-    Call this from your FastAPI application startup event (lifespan)
-    to ensure the Hugging Face model never goes to sleep.
-    """
-    asyncio.create_task(_keep_alive_task())
+    """No-op. Kept for backwards compatibility with main.py"""
+    pass

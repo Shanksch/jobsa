@@ -5,7 +5,7 @@
  * via the externally_connectable manifest key.
  */
 
-const EXTENSION_ID = "ecgeokfhnhelhecnbdndlinhfeebbdmm";
+const EXTENSION_ID = import.meta.env.VITE_EXTENSION_ID || "ecgeokfhnhelhecnbdndlinhfeebbdmm";
 
 export const CHROME_WEBSTORE_URL = `https://chromewebstore.google.com/detail/${EXTENSION_ID}`;
 

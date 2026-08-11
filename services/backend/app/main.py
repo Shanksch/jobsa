@@ -32,6 +32,19 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
     start_embedding_keep_alive()
 
+    import litellm
+    if settings.langfuse_enabled:
+        # Patch for Litellm < 1.49.5 and Langfuse v3+ compatibility
+        import langfuse
+        if not hasattr(langfuse, "version"):
+            import types
+            langfuse.version = types.ModuleType("version")
+            langfuse.version.__version__ = "2.5.0"
+
+        litellm.success_callback = ["langfuse"]
+        litellm.failure_callback = ["langfuse"]
+        logger.info("langfuse_enabled", host=settings.langfuse_host)
+
     logger.info(
         "application_startup",
         app_name=settings.app_name,

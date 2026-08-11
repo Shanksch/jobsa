@@ -23,8 +23,10 @@ from app.schemas.autofill import (
     JobMatchResponse,
 )
 from app.services.retrieval import retrieve_for_form
+from langfuse import observe
 
 
+@observe(name="autofill")
 async def generate_autofill_answers(
     profile: dict,
     form_schema: FormSchema,
@@ -101,6 +103,7 @@ async def generate_autofill_answers(
         return AutofillResponse(answers={})
 
 
+@observe(name="job-match")
 async def generate_job_match_score(
     profile: dict,
     payload: JobMatchRequest,
@@ -116,6 +119,34 @@ async def generate_job_match_score(
     Summary: {profile.get("summary") or ""}
     """
     context_parts = [f"--- PROFILE ---\n{profile_ctx.strip()}"]
+
+    skills_res = (
+        supabase.table("user_skills")
+        .select("proficiency, years_experience, skills(name)")
+        .eq("profile_id", profile_id)
+        .execute()
+        .data
+    )
+    skills_ctx = "; ".join(
+        f"{(s.get('skills') or {}).get('name')} "
+        f"({s.get('proficiency') or '?'}, {s.get('years_experience') or '?'} yrs)"
+        for s in skills_res or []
+    )
+    context_parts.append(f"--- VERIFIED SKILLS ---\n{skills_ctx}")
+
+    exp_res = (
+        supabase.table("work_experience")
+        .select("company, title, start_date, end_date")
+        .eq("profile_id", profile_id)
+        .order("start_date", desc=True)
+        .execute()
+        .data
+    )
+    exp_ctx = "; ".join(
+        f"{e['title']} at {e['company']} ({e['start_date']} - {e['end_date'] or 'Present'})"
+        for e in exp_res or []
+    )
+    context_parts.append(f"--- WORK HISTORY (verified) ---\n{exp_ctx}")
 
     # 2. Retrieve chunks relevant to the JD
     # We embed the whole JD or maybe the first 2000 chars to find relevant experience

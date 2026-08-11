@@ -15,6 +15,7 @@ import structlog
 from docx import Document
 from litellm import acompletion
 from pydantic import BaseModel, Field
+from langfuse import observe
 
 from app.config import settings
 
@@ -100,6 +101,7 @@ class ResumeSections(BaseModel):
 class ResumeParserService:
     """Service to extract and structure content from resumes using LLMs."""
 
+    @observe(name="extract-pdf-text")
     def extract_text_from_pdf(self, file_path: str) -> tuple[str, str]:
         """Extract raw text and markdown from PDF using pymupdf4llm."""
         logger.info("extracting_text_pdf", file_path=file_path)
@@ -113,6 +115,7 @@ class ResumeParserService:
             logger.error("pdf_extraction_failed", error=str(e))
             raise RuntimeError(f"Failed to extract text from PDF: {e}")
 
+    @observe(name="extract-docx-text")
     def extract_text_from_docx(self, file_path: str) -> tuple[str, str]:
         """Extract text from DOCX using python-docx."""
         logger.info("extracting_text_docx", file_path=file_path)
@@ -129,23 +132,47 @@ class ResumeParserService:
             logger.error("docx_extraction_failed", error=str(e))
             raise RuntimeError(f"Failed to extract text from DOCX: {e}")
 
+    @observe(name="structure-resume", as_type="generation")
     async def structure_resume(self, markdown_content: str) -> dict:
         """Use LiteLLM and instructor to extract structured fields from the markdown resume content."""
         logger.info(
             "structuring_resume_llm", provider=settings.llm_provider, model=settings.llm_model
         )
 
+        # Truncate content to ~12000 characters (approx 3000 tokens) to ensure it fits safely inside Groq's strict 6000 TPM limits
+        safe_markdown_content = markdown_content[:12000]
+        
         prompt = f"""
 You are an expert AI Resume Parser. Your job is to extract structured information from the markdown resume content below.
 Extract the details accurately based on the provided schema.
 
 Resume content to parse:
 ---
-{markdown_content}
+{safe_markdown_content}
 ---
 """
 
         try:
+            if settings.llm_provider == "gemini":
+                from google import genai
+                from google.genai import types
+                
+                # Assume genai.Client() can pick up settings.gemini_api_key either from env or default
+                client = genai.Client()
+                
+                response = await client.aio.models.generate_content(
+                    model=settings.llm_model,
+                    contents=prompt,
+                    config=types.GenerateContentConfig(
+                        response_mime_type="application/json",
+                        response_schema=ResumeSections,
+                        temperature=0.0,
+                    ),
+                )
+                
+                return ResumeSections.model_validate_json(response.text).model_dump()
+            
+            # Fallback for Groq/OpenAI using Instructor + LiteLLM
             kwargs: dict[str, Any] = {}
             if settings.llm_provider == "groq" and settings.groq_api_key:
                 kwargs["api_key"] = settings.groq_api_key
@@ -167,6 +194,7 @@ Resume content to parse:
                 ],
                 response_model=ResumeSections,
                 temperature=0.0,
+                max_tokens=2000 if "groq" in settings.llm_provider else 8192,
                 **kwargs,
             )
 
@@ -176,6 +204,7 @@ Resume content to parse:
             logger.error("llm_structuring_failed", error=str(e))
             raise e
 
+    @observe(name="parse-resume")
     async def parse_resume(self, file_path: str) -> ParsedResume:
         """Parse resume file (PDF or DOCX) to extract raw text, markdown, and structured sections."""
         ext = Path(file_path).suffix.lower()
