@@ -12,6 +12,27 @@ import { injectAnswers } from "./fill";
 
 /* ── State ───────────────────────────────────────────────────────────── */
 
+interface CategoryScores {
+  required_skills: number;
+  experience_seniority: number;
+  domain_relevance: number;
+  nice_to_have_skills: number;
+  education_certifications: number;
+  career_trajectory: number;
+}
+
+interface JobMatchResponse {
+  overall_score: number;
+  verdict: string;
+  category_scores: CategoryScores;
+  matched_requirements: string[];
+  missing_requirements: string[];
+  inferred_transferable_skills: string[];
+  red_flags: string[];
+  confidence: string;
+  rationale: string;
+}
+
 interface WidgetState {
   status: 'checking' | 'waking_up' | 'connected' | 'disconnected';
   resumes: { id: string; name: string; file_name: string; is_primary: boolean }[];
@@ -21,7 +42,7 @@ interface WidgetState {
   pageUrl: string;
   hasForm: boolean;
   isMatching: boolean;
-  matchScore: { score: number; justification: string } | null;
+  matchScore: JobMatchResponse | null;
   isAutofilling: boolean;
   autofillProgress: string;
   error: string | null;
@@ -182,7 +203,7 @@ function injectWidget() {
         if (jd.length > 10000) jd = jd.substring(0, 10000);
         if (!jd) throw new Error('Could not extract job description');
         const r = await msg('job_match', { resume_id: S.selectedResumeId, job_description: jd });
-        S.matchScore = { score: r.score, justification: r.justification };
+        S.matchScore = r as JobMatchResponse;
       } catch (e: any) { S.error = e.message; }
       S.isMatching = false; renderPanel();
     });
@@ -259,14 +280,99 @@ function injectWidget() {
 
 /* ── HTML ─────────────────────────────────────────────────────────────── */
 
+function buildMatchHTML(sc: JobMatchResponse): string {
+  const scColor = sc.overall_score >= 75 ? 'var(--w-green)' : sc.overall_score >= 50 ? 'var(--w-yellow)' : 'var(--w-red)';
+  const confColor = sc.confidence === 'High' ? 'var(--w-green)' : sc.confidence === 'Medium' ? 'var(--w-yellow)' : 'var(--w-red)';
+  
+  const offset = 339.292 - (339.292 * sc.overall_score) / 100;
+
+  const cats = sc.category_scores;
+  const gridHTML = `
+    <div class="cat-grid">
+      ${[
+        { l: 'Required Skills', s: cats.required_skills },
+        { l: 'Experience', s: cats.experience_seniority },
+        { l: 'Domain Relevance', s: cats.domain_relevance },
+        { l: 'Nice-to-Have', s: cats.nice_to_have_skills },
+        { l: 'Education', s: cats.education_certifications },
+        { l: 'Career Trajectory', s: cats.career_trajectory },
+      ].map(c => `
+        <div style="background:var(--w-card-bg);border:1px solid var(--w-card-border);border-radius:12px;padding:10px">
+          <div style="font-size:11px;color:var(--w-muted);font-weight:600;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${c.l}</div>
+          <div style="font-size:16px;font-weight:800;margin-bottom:6px">${c.s}</div>
+          <div style="height:4px;background:var(--w-card-border);border-radius:2px;overflow:hidden">
+            <div style="height:100%;width:${c.s}%;background:${c.s >= 75 ? 'var(--w-green)' : c.s >= 50 ? 'var(--w-yellow)' : 'var(--w-red)'};border-radius:2px"></div>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+
+  const reqPills = (list: string[], type: 'match' | 'miss' | 'trans') => list.map(item => {
+    let bg, fg, border;
+    if (type === 'match') { bg = '#ecfdf5'; fg = '#059669'; border = '#a7f3d0'; }
+    else if (type === 'miss') { bg = '#fff7ed'; fg = '#c2410c'; border = '#fed7aa'; }
+    else { bg = '#eff6ff'; fg = '#2563eb'; border = '#bfdbfe'; }
+    return `<span class="pill" style="background:${bg};color:${fg};border:1px solid ${border}">${item}</span>`;
+  }).join('');
+
+  return `
+    <div class="match-results fade-up" style="display:flex;flex-direction:column;gap:12px">
+      <div style="display:flex;flex-direction:column;align-items:center;padding:24px 0;border:1px solid var(--w-card-border);border-radius:14px;background:var(--w-card-bg);box-shadow:0 4px 12px var(--w-shadow)">
+        <div style="position:relative;width:120px;height:120px;margin-bottom:16px">
+          <svg width="120" height="120" viewBox="0 0 120 120">
+            <circle cx="60" cy="60" r="54" fill="none" stroke="var(--w-card-border)" stroke-width="8" />
+            <circle cx="60" cy="60" r="54" fill="none" stroke="${scColor}" stroke-width="8" stroke-linecap="round" stroke-dasharray="339.292" stroke-dashoffset="${offset}" style="transform:rotate(-90deg);transform-origin:50% 50%;animation:score-fill 1s cubic-bezier(0.16,1,0.3,1) forwards" />
+          </svg>
+          <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:32px;font-weight:800;letter-spacing:-1px">${sc.overall_score}<span style="font-size:16px;color:var(--w-muted);margin-left:2px">%</span></div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <span style="background:${scColor}15;color:${scColor};padding:4px 12px;border-radius:20px;font-size:13px;font-weight:700">${sc.verdict}</span>
+          <span style="background:${confColor}15;color:${confColor};padding:4px 12px;border-radius:20px;font-size:13px;font-weight:600">${sc.confidence} Confidence</span>
+        </div>
+      </div>
+
+      ${gridHTML}
+
+      <div style="display:flex;flex-direction:column;gap:8px;background:var(--w-card-bg);border:1px solid var(--w-card-border);border-radius:14px;padding:12px">
+        <details open>
+          <summary style="font-size:13px;font-weight:700;cursor:pointer;list-style:none;user-select:none;display:flex;align-items:center">✅ Matched Requirements (${sc.matched_requirements.length})</summary>
+          <div style="padding-top:8px">${reqPills(sc.matched_requirements, 'match')}</div>
+        </details>
+        ${sc.missing_requirements.length > 0 ? `
+        <div style="height:1px;background:var(--w-card-border);margin:4px 0"></div>
+        <details open>
+          <summary style="font-size:13px;font-weight:700;cursor:pointer;list-style:none;user-select:none;display:flex;align-items:center">⚠️ Missing Requirements (${sc.missing_requirements.length})</summary>
+          <div style="padding-top:8px">${reqPills(sc.missing_requirements, 'miss')}</div>
+        </details>` : ''}
+        ${sc.inferred_transferable_skills.length > 0 ? `
+        <div style="height:1px;background:var(--w-card-border);margin:4px 0"></div>
+        <details>
+          <summary style="font-size:13px;font-weight:700;cursor:pointer;list-style:none;user-select:none;display:flex;align-items:center;color:var(--w-muted)">💡 Transferable Skills (${sc.inferred_transferable_skills.length})</summary>
+          <div style="padding-top:8px">${reqPills(sc.inferred_transferable_skills, 'trans')}</div>
+        </details>` : ''}
+      </div>
+
+      ${sc.red_flags.length > 0 ? `
+      <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:14px;padding:14px;color:#991b1b">
+        <div style="font-size:13px;font-weight:800;margin-bottom:6px;display:flex;align-items:center;gap:6px">🚩 Red Flags</div>
+        <ul style="font-size:13px;margin:0;padding-left:18px;line-height:1.5">
+          ${sc.red_flags.map(f => `<li>${f}</li>`).join('')}
+        </ul>
+      </div>` : ''}
+
+      <details style="background:var(--w-card-bg);border:1px solid var(--w-card-border);border-radius:14px;padding:12px">
+        <summary style="font-size:13px;font-weight:700;cursor:pointer;list-style:none;user-select:none;display:flex;align-items:center">📝 AI Analysis Rationale</summary>
+        <div style="padding-top:8px;font-size:13px;line-height:1.6;color:var(--w-muted)">${sc.rationale}</div>
+      </details>
+    </div>
+  `;
+}
+
 function buildHTML(): string {
   const dot = S.status === 'connected' ? '#10b981' : S.status === 'disconnected' ? '#ef4444' : '#f59e0b';
   
   const opts = S.resumes.map(r => `<option value="${r.id}" ${r.id === S.selectedResumeId ? 'selected' : ''}>${r.name}</option>`).join('');
-
-  const sc = S.matchScore;
-  const scColor = sc ? (sc.score >= 75 ? '#10b981' : sc.score >= 50 ? '#f59e0b' : '#ef4444') : '';
-  const badge = sc ? `<div style="position:absolute;top:16px;right:16px;width:44px;height:44px;border-radius:50%;border:2px solid ${scColor};display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:${scColor};background:#fff">${sc.score}%</div>` : '';
 
   let resHTML = '';
   if (S.results) {
@@ -281,12 +387,12 @@ function buildHTML(): string {
       } else {
         icon = '⚠'; color = '#f59e0b';
       }
-      return `<div data-fid="${r.fieldId}" style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:8px;cursor:pointer;font-size:13px;opacity:${opac}" onmouseover="this.style.background='#f5f5f5'" onmouseout="this.style.background='transparent'"><span style="color:${color};display:flex;align-items:center;justify-content:center;width:16px;font-weight:bold">${icon}</span><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:${r.status==='loading'?'#888':'inherit'}">${r.label}</span></div>`;
+      return `<div data-fid="${r.fieldId}" style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:8px;cursor:pointer;font-size:13px;opacity:${opac}" onmouseover="this.style.background='var(--w-card-border)'" onmouseout="this.style.background='transparent'"><span style="color:${color};display:flex;align-items:center;justify-content:center;width:16px;font-weight:bold">${icon}</span><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:${r.status==='loading'?'var(--w-muted)':'inherit'}">${r.label}</span></div>`;
     }).join('');
     resHTML = `
-      <details open style="margin-top:16px;border-top:1px solid #eee;padding-top:16px;">
+      <details open style="margin-top:16px;border-top:1px solid var(--w-card-border);padding-top:16px;">
         <summary style="display:flex;align-items:center;justify-content:space-between;font-size:13px;font-weight:700;cursor:pointer;list-style:none;user-select:none;margin-bottom:12px">
-          <span style="display:flex;align-items:center;gap:8px">📋 Your Autofill Information <span style="font-size:10px;font-weight:600;background:#f5f5f5;padding:2px 6px;border-radius:10px;color:#666">${ok}/${S.results.length}</span></span>
+          <span style="display:flex;align-items:center;gap:8px">📋 Your Autofill Information <span style="font-size:10px;font-weight:600;background:var(--w-card-border);padding:2px 6px;border-radius:10px;color:var(--w-muted)">${ok}/${S.results.length}</span></span>
         </summary>
         <div style="max-height:240px;overflow-y:auto;padding-right:4px">${rows}</div>
         <div style="margin-top:12px">
@@ -298,42 +404,42 @@ function buildHTML(): string {
   }
 
   return `
-    <div style="display:flex;align-items:center;gap:12px;padding:16px 20px;border-bottom:1px solid #eee">
+    <div style="display:flex;align-items:center;gap:12px;padding:16px 20px;border-bottom:1px solid var(--w-card-border)">
       <img src="${chrome.runtime.getURL('logo.png')}" style="width:28px;height:28px;object-fit:contain" />
       <span style="font-weight:800;font-size:16px;flex:1;letter-spacing:-0.3px">JobSA</span>
-      <button id="close-btn" style="background:none;border:none;cursor:pointer;font-size:20px;color:#aaa;line-height:1;width:24px;height:24px;display:flex;align-items:center;justify-content:center;border-radius:50%" onmouseover="this.style.background='#f0f0f0';this.style.color='#333'" onmouseout="this.style.background='none';this.style.color='#aaa'">✕</button>
+      <button id="close-btn" style="background:none;border:none;cursor:pointer;font-size:20px;color:var(--w-muted);line-height:1;width:24px;height:24px;display:flex;align-items:center;justify-content:center;border-radius:50%" onmouseover="this.style.background='var(--w-card-border)';this.style.color='var(--w-text)'" onmouseout="this.style.background='none';this.style.color='var(--w-muted)'">✕</button>
     </div>
     
     <div style="flex:1;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:16px;min-height:0">
       
-      <div style="background:#fff;border:1px solid #eaeaea;border-radius:14px;padding:16px;position:relative;box-shadow:0 2px 8px rgba(0,0,0,.02)">
-        <div style="font-size:12px;color:#666;font-weight:500;margin-bottom:4px;display:flex;align-items:center;gap:6px">
+      <div style="background:var(--w-card-bg);border:1px solid var(--w-card-border);border-radius:14px;padding:16px;position:relative;box-shadow:0 2px 8px rgba(0,0,0,.02)">
+        <div style="font-size:12px;color:var(--w-muted);font-weight:500;margin-bottom:4px;display:flex;align-items:center;gap:6px">
           <span style="width:8px;height:8px;border-radius:50%;background:${dot}"></span> ${S.company}
         </div>
         <div style="font-size:18px;font-weight:800;line-height:1.2;padding-right:50px;letter-spacing:-0.4px">${S.jobTitle}</div>
-        ${badge}
       </div>
 
-      <button id="fill-btn" style="width:100%;padding:18px;border:none;border-radius:14px;font-size:18px;font-weight:800;cursor:pointer;font-family:inherit;background:#00e599;color:#000;box-shadow:0 6px 20px rgba(0,229,153,.3);transition:all .2s;letter-spacing:-0.2px" ${S.isAutofilling || !S.selectedResumeId || !S.hasForm ? 'disabled' : ''}>
-        ${S.isAutofilling ? 'Autofilling...' : S.hasForm ? 'Autofill' : 'No Form Detected'}
-      </button>
-      ${S.autofillProgress ? `<div style="text-align:center;font-size:13px;color:#666;font-weight:500">${S.autofillProgress}</div>` : ''}
-      ${S.error ? `<div style="padding:12px;background:#fef2f2;border:1px solid #fecaca;border-radius:12px;font-size:13px;color:#dc2626;font-weight:500">${S.error}</div>` : ''}
-      
-      <div style="border:1px solid #eaeaea;border-radius:14px;overflow:hidden;background:#fff">
-        <div style="padding:14px 16px;font-size:13px;font-weight:700;display:flex;align-items:center;gap:8px;border-bottom:1px solid #eaeaea">
-          📄 Upload Resume
+      <div style="border:1px solid var(--w-card-border);border-radius:14px;overflow:hidden;background:var(--w-card-bg)">
+        <div style="padding:14px 16px;font-size:13px;font-weight:700;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--w-card-border)">
+          📄 Target Resume
         </div>
         <div style="padding:12px 16px;display:flex;flex-direction:column;gap:12px">
-          <select id="rs" style="width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:10px;font-size:13px;font-weight:500;font-family:inherit;background:#f9f9f9;cursor:pointer" ${S.resumes.length === 0 ? 'disabled' : ''}>
+          <select id="rs" style="width:100%;padding:10px 12px;border:1px solid var(--w-card-border);border-radius:10px;font-size:13px;font-weight:500;font-family:inherit;background:var(--w-bg);color:var(--w-text);cursor:pointer" ${S.resumes.length === 0 ? 'disabled' : ''}>
             ${S.resumes.length === 0 ? '<option>No resumes</option>' : opts}
           </select>
-          <button id="match-btn" style="width:100%;padding:10px;border:none;background:#f0fcf7;color:#00b87a;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:6px" ${S.isMatching || !S.selectedResumeId ? 'disabled' : ''}>
-            ${S.isMatching ? '<span style="display:inline-block;width:12px;height:12px;border:2px solid #00b87a;border-top-color:transparent;border-radius:50%;animation:spin 1s linear infinite"></span> Analyzing...' : '✨ Check Match Score'}
+          <button id="match-btn" style="width:100%;padding:10px;border:none;background:var(--w-green-light);color:var(--w-green-dark);border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:6px" ${S.isMatching || !S.selectedResumeId ? 'disabled' : ''}>
+            ${S.isMatching ? '<span style="display:inline-block;width:12px;height:12px;border:2px solid var(--w-green-dark);border-top-color:transparent;border-radius:50%;animation:spin 1s linear infinite"></span> Analyzing Match...' : '✨ Check Match Score'}
           </button>
-          ${S.matchScore ? `<ul style="font-size:12px;color:#444;line-height:1.6;background:#f9f9f9;padding:14px 16px 14px 30px;border-radius:10px;border:1px solid #eee;margin:0;max-height:200px;overflow-y:auto;display:flex;flex-direction:column;gap:6px">${S.matchScore.justification.split(/(?<=[.?!])\s+/).filter(Boolean).map(s => `<li style="margin-bottom:4px">${s.trim()}</li>`).join('')}</ul>` : ''}
         </div>
       </div>
+      
+      ${S.matchScore ? buildMatchHTML(S.matchScore) : ''}
+
+      <button id="fill-btn" style="width:100%;padding:18px;border:none;border-radius:14px;font-size:18px;font-weight:800;cursor:pointer;font-family:inherit;background:#00e599;color:#000;box-shadow:0 6px 20px rgba(0,229,153,.3);transition:all .2s;letter-spacing:-0.2px" ${S.isAutofilling || !S.selectedResumeId || !S.hasForm ? 'disabled' : ''}>
+        ${S.isAutofilling ? 'Autofilling...' : S.hasForm ? 'Autofill Application' : 'No Form Detected'}
+      </button>
+      ${S.autofillProgress ? `<div style="text-align:center;font-size:13px;color:var(--w-muted);font-weight:500">${S.autofillProgress}</div>` : ''}
+      ${S.error ? `<div style="padding:12px;background:#fef2f2;border:1px solid #fecaca;border-radius:12px;font-size:13px;color:#dc2626;font-weight:500">${S.error}</div>` : ''}
       
       ${resHTML}
     </div>`;
@@ -389,13 +495,25 @@ function extractFormSchema(): FormField[] {
 
 const WIDGET_CSS = `
   @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes score-fill { from { stroke-dashoffset: 339.292; } }
+  @keyframes fade-up { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+
   :host { 
     all: initial; position: fixed; z-index: 2147483647; bottom: 0; right: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
-    --w-bg: #fff; --w-text: #1a1a1a; --w-border: rgba(0,0,0,.06); --w-shadow: rgba(0,0,0,.1);
+    --w-bg: #f9fafb; --w-text: #111827; --w-border: rgba(0,0,0,.06); --w-shadow: rgba(0,0,0,.1);
+    --w-green: #10b981; --w-green-light: #ecfdf5; --w-green-dark: #059669;
+    --w-yellow: #f59e0b; --w-red: #ef4444; 
+    --w-card-bg: #fff; --w-card-border: #eaeaea; --w-muted: #6b7280;
   }
   :host(.dark) {
-    --w-bg: #0f1117; --w-text: #e4e4e7; --w-border: #27272a; --w-shadow: rgba(0,0,0,.5);
+    --w-bg: #0f1117; --w-text: #f3f4f6; --w-border: #27272a; --w-shadow: rgba(0,0,0,.5);
+    --w-card-bg: #1f2937; --w-card-border: #374151; --w-muted: #9ca3af;
+    --w-green-light: #064e3b; --w-green-dark: #34d399;
   }
+
+  .cat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .pill { display: inline-block; padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; margin: 3px; }
+  .fade-up { animation: fade-up 0.4s cubic-bezier(0.16,1,0.3,1); }
 
   .fab {
     position: fixed; bottom: 24px; right: 24px;

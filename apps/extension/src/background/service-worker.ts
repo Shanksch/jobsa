@@ -172,11 +172,13 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
   ];
 
   if (!sender.origin || !allowedOrigins.includes(sender.origin)) {
+    console.warn("[JobSA] Unauthorized origin blocked:", sender.origin);
     sendResponse({ error: "Unauthorized origin" });
     return;
   }
 
   if (message.action === "save_token") {
+    console.log("[JobSA] Saving new token from web dashboard");
     if (message.token) {
       const data: Record<string, string> = { sb_auth_token: message.token };
       if (message.refresh_token) data.sb_refresh_token = message.refresh_token;
