@@ -17,7 +17,9 @@ ENV VIRTUAL_ENV=/opt/venv
 RUN uv venv $VIRTUAL_ENV
 ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 
-RUN uv pip install --no-cache .
+# Compile pyproject.toml to requirements and install to maximize layer caching
+RUN uv pip compile pyproject.toml -o requirements.txt && \
+    uv pip install --no-cache -r requirements.txt
 
 # Stage 2: Runtime
 FROM python:3.12-slim
