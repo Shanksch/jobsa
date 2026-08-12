@@ -76,9 +76,26 @@ const S: WidgetState = {
 function injectWidget() {
   if (document.getElementById('jobsa-widget-host')) return;
 
+  if (!document.getElementById('jobsa-squeeze-styles')) {
+    const style = document.createElement('style');
+    style.id = 'jobsa-squeeze-styles';
+    style.textContent = `
+      html.jobsa-squeeze { overflow-x: hidden; }
+      html.jobsa-squeeze body {
+        transform: translateZ(0);
+        width: calc(100% - var(--jobsa-panel-width, 0px)) !important;
+        margin-inline-end: var(--jobsa-panel-width, 0px) !important;
+        box-sizing: border-box;
+        transition: width 220ms ease, margin-inline-end 220ms ease;
+      }
+    `;
+    document.documentElement.appendChild(style);
+  }
+
   const host = document.createElement('div');
   host.id = 'jobsa-widget-host';
-  document.body.appendChild(host);
+  // Attach to html, not body, so it stays outside the body transform
+  document.documentElement.appendChild(host);
 
   const shadow = host.attachShadow({ mode: 'open' });
 
@@ -90,6 +107,13 @@ function injectWidget() {
     if (area === 'local' && changes.jobsa_theme) {
       if (changes.jobsa_theme.newValue === 'dark') host.classList.add('dark');
       else host.classList.remove('dark');
+    }
+  });
+
+  // Listen for theme sync from dashboard
+  window.addEventListener('message', (event) => {
+    if (event.data?.type === 'JOBSA_THEME_SYNC') {
+      chrome.storage.local.set({ jobsa_theme: event.data.theme });
     }
   });
 
@@ -118,8 +142,8 @@ function injectWidget() {
     });
     
     // Squeeze website
-    document.documentElement.style.setProperty('padding-right', '404px', 'important');
-    document.documentElement.style.setProperty('transition', 'padding-right 0.3s cubic-bezier(0.16, 1, 0.3, 1)', 'important');
+    document.documentElement.style.setProperty('--jobsa-panel-width', '404px');
+    document.documentElement.classList.add('jobsa-squeeze');
   }
 
   function closePanel() {
@@ -130,9 +154,9 @@ function injectWidget() {
     panel = null;
     
     // Restore website layout
-    document.documentElement.style.removeProperty('padding-right');
+    document.documentElement.classList.remove('jobsa-squeeze');
+    document.documentElement.style.removeProperty('--jobsa-panel-width');
     setTimeout(() => {
-      if (!panel) document.documentElement.style.removeProperty('transition');
       p.remove();
     }, 300);
   }
@@ -259,6 +283,13 @@ function injectWidget() {
           target.style.outline = '2px solid #00e599';
           setTimeout(() => { target.style.outline = ''; }, 3000);
         }
+      });
+    });
+
+    root.querySelector('#theme-btn')?.addEventListener('click', () => {
+      chrome.storage.local.get(['jobsa_theme'], (res) => {
+        const newTheme = res.jobsa_theme === 'dark' ? 'light' : 'dark';
+        chrome.storage.local.set({ jobsa_theme: newTheme });
       });
     });
 
@@ -407,6 +438,7 @@ function buildHTML(): string {
     <div style="display:flex;align-items:center;gap:12px;padding:16px 20px;border-bottom:1px solid var(--w-card-border)">
       <img src="${chrome.runtime.getURL('logo.png')}" style="width:28px;height:28px;object-fit:contain" />
       <span style="font-weight:800;font-size:16px;flex:1;letter-spacing:-0.3px">JobSA</span>
+      <button id="theme-btn" style="background:none;border:none;cursor:pointer;font-size:18px;line-height:1;width:24px;height:24px;display:flex;align-items:center;justify-content:center;border-radius:50%" onmouseover="this.style.background='var(--w-card-border)'" onmouseout="this.style.background='none'" title="Toggle Theme">🌓</button>
       <button id="close-btn" style="background:none;border:none;cursor:pointer;font-size:20px;color:var(--w-muted);line-height:1;width:24px;height:24px;display:flex;align-items:center;justify-content:center;border-radius:50%" onmouseover="this.style.background='var(--w-card-border)';this.style.color='var(--w-text)'" onmouseout="this.style.background='none';this.style.color='var(--w-muted)'">✕</button>
     </div>
     
