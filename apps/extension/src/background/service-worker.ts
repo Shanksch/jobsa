@@ -110,6 +110,13 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     return true;
   }
 
+  if (message.action === "get_auth_status") {
+    getValidToken()
+      .then(token => sendResponse({ authenticated: !!token }))
+      .catch(() => sendResponse({ authenticated: false }));
+    return true;
+  }
+
   if (message.action === "autofill") {
     handleAutofill(message.payload)
       .then(response => sendResponse(response))
@@ -258,70 +265,69 @@ function decodeJwtPayload(token: string): { exp?: number; sub?: string } {
  *
  * Returns `null` if no tokens are stored or refresh fails.
  */
+let refreshPromise: Promise<string | null> | null = null;
+
 async function getValidToken(): Promise<string | null> {
   const { sb_auth_token, sb_refresh_token } =
     await chrome.storage.local.get(["sb_auth_token", "sb_refresh_token"]);
 
   if (!sb_auth_token) return null;
 
-  // Check if the current token is still valid (with 5-min buffer)
   const payload = decodeJwtPayload(sb_auth_token);
   const now = Math.floor(Date.now() / 1000);
-  const BUFFER_SECONDS = 300; // refresh 5 min before real expiry
+  const BUFFER_SECONDS = 300;
 
   if (payload.exp && payload.exp - BUFFER_SECONDS > now) {
-    // Token is still fresh
     return sb_auth_token;
   }
 
-  // Token expired or expiring soon — try to refresh
   if (!sb_refresh_token) {
     console.warn("[JobSA] Token expired and no refresh token available");
     chrome.storage.local.remove(["sb_auth_token", "sb_refresh_token"]);
     return null;
   }
 
-  console.log("[JobSA] Access token expired, refreshing…");
+  // De-dupe concurrent refresh attempts against the same (soon-to-rotate) token
+  if (refreshPromise) return refreshPromise;
 
-  try {
-    const res = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "apikey": SUPABASE_ANON_KEY,
-      },
-      body: JSON.stringify({ refresh_token: sb_refresh_token }),
-    });
+  refreshPromise = (async () => {
+    console.log("[JobSA] Access token expired, refreshing…");
+    try {
+      const res = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "apikey": SUPABASE_ANON_KEY },
+        body: JSON.stringify({ refresh_token: sb_refresh_token }),
+      });
 
-    if (!res.ok) {
-      console.error("[JobSA] Refresh failed:", res.status);
+      if (!res.ok) {
+        console.error("[JobSA] Refresh failed:", res.status);
+        chrome.storage.local.remove(["sb_auth_token", "sb_refresh_token"]);
+        return null;
+      }
+
+      const data = await res.json();
+      if (!data.access_token) {
+        chrome.storage.local.remove(["sb_auth_token", "sb_refresh_token"]);
+        return null;
+      }
+
+      await chrome.storage.local.set({
+        sb_auth_token: data.access_token,
+        sb_refresh_token: data.refresh_token || sb_refresh_token,
+      });
+
+      console.log("[JobSA] Token refreshed successfully");
+      return data.access_token;
+    } catch (err) {
+      console.error("[JobSA] Token refresh error:", err);
       chrome.storage.local.remove(["sb_auth_token", "sb_refresh_token"]);
       return null;
+    } finally {
+      refreshPromise = null;
     }
+  })();
 
-    const data = await res.json();
-    const newAccessToken = data.access_token;
-    const newRefreshToken = data.refresh_token;
-
-    if (!newAccessToken) {
-      console.error("[JobSA] Refresh response missing access_token");
-      chrome.storage.local.remove(["sb_auth_token", "sb_refresh_token"]);
-      return null;
-    }
-
-    // Persist the fresh tokens
-    await chrome.storage.local.set({
-      sb_auth_token: newAccessToken,
-      sb_refresh_token: newRefreshToken || sb_refresh_token,
-    });
-
-    console.log("[JobSA] Token refreshed successfully");
-    return newAccessToken;
-  } catch (err) {
-    console.error("[JobSA] Token refresh error:", err);
-    chrome.storage.local.remove(["sb_auth_token", "sb_refresh_token"]);
-    return null;
-  }
+  return refreshPromise;
 }
 
 async function handleAutofill(payload: any) {

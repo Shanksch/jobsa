@@ -50,6 +50,7 @@ interface WidgetState {
   generatedAnswers: Record<string, string> | null;
   isSaving: boolean;
   isSaved: boolean;
+  authenticated: boolean | null;
 }
 
 const S: WidgetState = {
@@ -69,6 +70,7 @@ const S: WidgetState = {
   generatedAnswers: null,
   isSaving: false,
   isSaved: false,
+  authenticated: null,
 };
 
 /* ── Main ────────────────────────────────────────────────────────────── */
@@ -182,9 +184,38 @@ function injectWidget() {
   // ── Bootstrap ──
   detectPage();
   setInterval(detectPage, 3000);
-  fetchResumes(shadow.querySelector('.dot') as HTMLElement, renderPanel);
+  checkAuth();
+
+  // React live to sign-in/sign-out — no reopen needed
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === 'local' && (changes.sb_auth_token || changes.sb_refresh_token)) {
+      checkAuth();
+    }
+  });
 
   /* ── Helpers ── */
+
+  function checkAuth() {
+    chrome.runtime.sendMessage({ action: 'get_auth_status' }, (res) => {
+      const wasAuthenticated = S.authenticated;
+      S.authenticated = !!res?.authenticated;
+
+      if (S.authenticated && !wasAuthenticated) {
+        // Just signed in — pull resumes now
+        fetchResumes(shadow.querySelector('.dot') as HTMLElement, renderPanel);
+      }
+      updateFabDot();
+      renderPanel();
+    });
+  }
+
+  function updateFabDot() {
+    const dotEl = shadow.querySelector('.dot') as HTMLElement | null;
+    if (!dotEl) return;
+    if (S.authenticated === null) dotEl.style.background = '#f59e0b';      // checking
+    else if (S.authenticated === false) dotEl.style.background = '#9ca3af'; // signed out (neutral, not an error)
+    else dotEl.style.background = S.status === 'connected' ? '#10b981' : S.status === 'disconnected' ? '#ef4444' : '#f59e0b';
+  }
 
   function detectPage() {
     const inputs = document.querySelectorAll('input:not([type=hidden]), select, textarea');
@@ -200,10 +231,10 @@ function injectWidget() {
       if (chrome.runtime.lastError || res?.error) {
         S.status = 'disconnected';
         S.error = chrome.runtime.lastError?.message || res?.error || 'Failed to connect to backend';
-        if (dot) dot.style.background = '#ef4444';
+        updateFabDot();
       } else {
         S.status = 'connected';
-        if (dot) dot.style.background = '#10b981';
+        updateFabDot();
         S.resumes = res || [];
         if (S.resumes.length > 0) {
           const p = S.resumes.find(r => r.is_primary);
@@ -291,6 +322,10 @@ function injectWidget() {
         const newTheme = res.jobsa_theme === 'dark' ? 'light' : 'dark';
         chrome.storage.local.set({ jobsa_theme: newTheme });
       });
+    });
+
+    root.querySelector('#signin-btn')?.addEventListener('click', () => {
+      window.open('https://jobsa-web-dashboard.vercel.app', '_blank');
     });
 
     root.querySelector('#close-btn')?.addEventListener('click', closePanel);
@@ -400,9 +435,21 @@ function buildMatchHTML(sc: JobMatchResponse): string {
   `;
 }
 
+function buildSignedOutHTML(): string {
+  return `
+    <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:16px;padding:48px 24px;flex:1">
+      <img src="${chrome.runtime.getURL('logo.png')}" style="width:48px;height:48px;object-fit:contain;opacity:.85" />
+      <div>
+        <div style="font-size:16px;font-weight:800;margin-bottom:6px">You're signed out</div>
+        <div style="font-size:13px;color:var(--w-muted);line-height:1.5">Sign in to autofill applications and check your match score.</div>
+      </div>
+      <button id="signin-btn" style="width:100%;padding:14px;border:none;border-radius:12px;font-size:14px;font-weight:800;cursor:pointer;font-family:inherit;background:#00e599;color:#000;box-shadow:0 6px 20px rgba(0,229,153,.3)">
+        Sign in to JobSA
+      </button>
+    </div>`;
+}
+
 function buildHTML(): string {
-  const dot = S.status === 'connected' ? '#10b981' : S.status === 'disconnected' ? '#ef4444' : '#f59e0b';
-  
   const opts = S.resumes.map(r => `<option value="${r.id}" ${r.id === S.selectedResumeId ? 'selected' : ''}>${r.name}</option>`).join('');
 
   let resHTML = '';
@@ -442,39 +489,43 @@ function buildHTML(): string {
       <button id="close-btn" style="background:none;border:none;cursor:pointer;font-size:20px;color:var(--w-muted);line-height:1;width:24px;height:24px;display:flex;align-items:center;justify-content:center;border-radius:50%" onmouseover="this.style.background='var(--w-card-border)';this.style.color='var(--w-text)'" onmouseout="this.style.background='none';this.style.color='var(--w-muted)'">✕</button>
     </div>
     
-    <div style="flex:1;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:16px;min-height:0">
-      
-      <div style="background:var(--w-card-bg);border:1px solid var(--w-card-border);border-radius:14px;padding:16px;position:relative;box-shadow:0 2px 8px rgba(0,0,0,.02)">
-        <div style="font-size:12px;color:var(--w-muted);font-weight:500;margin-bottom:4px;display:flex;align-items:center;gap:6px">
-          <span style="width:8px;height:8px;border-radius:50%;background:${dot}"></span> ${S.company}
-        </div>
-        <div style="font-size:18px;font-weight:800;line-height:1.2;padding-right:50px;letter-spacing:-0.4px">${S.jobTitle}</div>
-      </div>
+    ${S.authenticated === false
+      ? buildSignedOutHTML()
+      : `<div style="flex:1;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:16px;min-height:0">
+          
+          <div style="background:var(--w-card-bg);border:1px solid var(--w-card-border);border-radius:14px;padding:16px;position:relative;box-shadow:0 2px 8px rgba(0,0,0,.02)">
+            <div style="font-size:12px;color:var(--w-muted);font-weight:500;margin-bottom:4px;display:flex;align-items:center;gap:6px">
+              <span style="width:8px;height:8px;border-radius:50%;background:${S.status === 'connected' ? '#10b981' : S.status === 'disconnected' ? '#ef4444' : '#f59e0b'}"></span> ${S.company}
+            </div>
+            <div style="font-size:18px;font-weight:800;line-height:1.2;padding-right:50px;letter-spacing:-0.4px">${S.jobTitle}</div>
+          </div>
 
-      <div style="border:1px solid var(--w-card-border);border-radius:14px;overflow:hidden;background:var(--w-card-bg)">
-        <div style="padding:14px 16px;font-size:13px;font-weight:700;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--w-card-border)">
-          📄 Target Resume
-        </div>
-        <div style="padding:12px 16px;display:flex;flex-direction:column;gap:12px">
-          <select id="rs" style="width:100%;padding:10px 12px;border:1px solid var(--w-card-border);border-radius:10px;font-size:13px;font-weight:500;font-family:inherit;background:var(--w-bg);color:var(--w-text);cursor:pointer" ${S.resumes.length === 0 ? 'disabled' : ''}>
-            ${S.resumes.length === 0 ? '<option>No resumes</option>' : opts}
-          </select>
-          <button id="match-btn" style="width:100%;padding:10px;border:none;background:var(--w-green-light);color:var(--w-green-dark);border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:6px" ${S.isMatching || !S.selectedResumeId ? 'disabled' : ''}>
-            ${S.isMatching ? '<span style="display:inline-block;width:12px;height:12px;border:2px solid var(--w-green-dark);border-top-color:transparent;border-radius:50%;animation:spin 1s linear infinite"></span> Analyzing Match...' : '✨ Check Match Score'}
+          <div style="border:1px solid var(--w-card-border);border-radius:14px;overflow:hidden;background:var(--w-card-bg)">
+            <div style="padding:14px 16px;font-size:13px;font-weight:700;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--w-card-border)">
+              📄 Target Resume
+            </div>
+            <div style="padding:12px 16px;display:flex;flex-direction:column;gap:12px">
+              <select id="rs" style="width:100%;padding:10px 12px;border:1px solid var(--w-card-border);border-radius:10px;font-size:13px;font-weight:500;font-family:inherit;background:var(--w-bg);color:var(--w-text);cursor:pointer" ${S.resumes.length === 0 ? 'disabled' : ''}>
+                ${S.resumes.length === 0 ? '<option>No resumes</option>' : opts}
+              </select>
+              <button id="match-btn" style="width:100%;padding:10px;border:none;background:var(--w-green-light);color:var(--w-green-dark);border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:6px" ${S.isMatching || !S.selectedResumeId ? 'disabled' : ''}>
+                ${S.isMatching ? '<span style="display:inline-block;width:12px;height:12px;border:2px solid var(--w-green-dark);border-top-color:transparent;border-radius:50%;animation:spin 1s linear infinite"></span> Analyzing Match...' : '✨ Check Match Score'}
+              </button>
+            </div>
+          </div>
+          
+          ${S.matchScore ? buildMatchHTML(S.matchScore) : ''}
+
+          <button id="fill-btn" style="width:100%;padding:18px;border:none;border-radius:14px;font-size:18px;font-weight:800;cursor:pointer;font-family:inherit;background:#00e599;color:#000;box-shadow:0 6px 20px rgba(0,229,153,.3);transition:all .2s;letter-spacing:-0.2px" ${S.isAutofilling || !S.selectedResumeId || !S.hasForm ? 'disabled' : ''}>
+            ${S.isAutofilling ? 'Autofilling...' : S.hasForm ? 'Autofill Application' : 'No Form Detected'}
           </button>
-        </div>
-      </div>
-      
-      ${S.matchScore ? buildMatchHTML(S.matchScore) : ''}
-
-      <button id="fill-btn" style="width:100%;padding:18px;border:none;border-radius:14px;font-size:18px;font-weight:800;cursor:pointer;font-family:inherit;background:#00e599;color:#000;box-shadow:0 6px 20px rgba(0,229,153,.3);transition:all .2s;letter-spacing:-0.2px" ${S.isAutofilling || !S.selectedResumeId || !S.hasForm ? 'disabled' : ''}>
-        ${S.isAutofilling ? 'Autofilling...' : S.hasForm ? 'Autofill Application' : 'No Form Detected'}
-      </button>
-      ${S.autofillProgress ? `<div style="text-align:center;font-size:13px;color:var(--w-muted);font-weight:500">${S.autofillProgress}</div>` : ''}
-      ${S.error ? `<div style="padding:12px;background:#fef2f2;border:1px solid #fecaca;border-radius:12px;font-size:13px;color:#dc2626;font-weight:500">${S.error}</div>` : ''}
-      
-      ${resHTML}
-    </div>`;
+          ${S.autofillProgress ? `<div style="text-align:center;font-size:13px;color:var(--w-muted);font-weight:500">${S.autofillProgress}</div>` : ''}
+          ${S.error ? `<div style="padding:12px;background:#fef2f2;border:1px solid #fecaca;border-radius:12px;font-size:13px;color:#dc2626;font-weight:500">${S.error}</div>` : ''}
+          
+          ${resHTML}
+        </div>`
+    }
+  `;
 }
 
 /* ── Form Schema Extraction ──────────────────────────────────────────── */
