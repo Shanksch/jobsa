@@ -112,6 +112,9 @@ async def generate_job_match_score(
     """
     Score the user's resume against a job description.
     """
+    if not supabase:
+        raise RuntimeError("Supabase client is not initialized")
+
     profile_id = profile["id"]
 
     # 1. Base profile context
@@ -130,8 +133,8 @@ async def generate_job_match_score(
         .data
     )
     skills_ctx = "; ".join(
-        f"{(s.get('skills') or {}).get('name')} "
-        f"({s.get('proficiency') or '?'}, {s.get('years_experience') or '?'} yrs)"
+        f"{(s.get('skills') or {}).get('name')} "  # type: ignore
+        f"({s.get('proficiency') or '?'}, {s.get('years_experience') or '?'} yrs)"  # type: ignore
         for s in skills_res or []
     )
     context_parts.append(f"--- VERIFIED SKILLS ---\n{skills_ctx}")
@@ -145,7 +148,7 @@ async def generate_job_match_score(
         .data
     )
     exp_ctx = "; ".join(
-        f"{e['title']} at {e['company']} ({e['start_date']} - {e['end_date'] or 'Present'})"
+        f"{e['title']} at {e['company']} ({e['start_date']} - {e['end_date'] or 'Present'})"  # type: ignore
         for e in exp_res or []
     )
     context_parts.append(f"--- WORK HISTORY (verified) ---\n{exp_ctx}")
