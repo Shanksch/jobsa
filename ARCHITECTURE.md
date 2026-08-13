@@ -197,6 +197,7 @@
 **Why:**
 - Significantly faster dependency resolution and installations compared to standard `pip`.
 - Deterministic builds via `uv.lock`.
+- Enables highly optimized multi-stage Docker builds (layer caching via `uv pip compile pyproject.toml -o requirements.txt`), drastically reducing build times and container size.
 - Modern, Rust-based tooling that aligns with the speed goals of Turborepo in the frontend.
 
 ### 17. Rigorous Job Match Scoring
@@ -207,6 +208,16 @@
 - Evaluates resumes strictly based on concrete evidence without hallucinating skills.
 - Uses `instructor` to guarantee a structured evaluation rubric (category scores, missing requirements).
 - Helps candidates tailor their resumes before applying by highlighting gaps.
+
+### 18. Extension UI & Live Auth Reactivity
+
+**Choice:** The Chrome Extension uses Vanilla JS inside a Shadow DOM for its floating UI, and a service worker that proactively manages token refreshing.
+
+**Why:**
+- **CSS Isolation:** Shadow DOM prevents the host page's CSS from overriding the widget's styles, and vice-versa.
+- **Layout Integrity:** Instead of injecting a fixed sidebar that overlaps content, the widget applies `transform: translateZ(0)` and `margin-inline-end` to the host's `<html>` element to squeeze the original website, preserving fixed headers and layouts.
+- **Race-Condition-Free Auth:** The `getValidToken()` service worker uses a `refreshPromise` lock to deduplicate concurrent requests. This prevents Supabase token rotation from failing and wiping the session when multiple components check auth simultaneously right at token expiry.
+- **Live Reactivity:** The widget listens to `chrome.storage.onChanged` for token and theme changes, instantly re-rendering between "Signed Out" and "Connected" states (or dark/light modes) without needing to close and reopen the panel.
 
 ---
 

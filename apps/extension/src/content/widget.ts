@@ -202,7 +202,7 @@ function injectWidget() {
 
       if (S.authenticated && !wasAuthenticated) {
         // Just signed in — pull resumes now
-        fetchResumes(shadow.querySelector('.dot') as HTMLElement, renderPanel);
+        fetchResumes(renderPanel);
       }
       updateFabDot();
       renderPanel();
@@ -225,7 +225,7 @@ function injectWidget() {
     S.pageUrl = window.location.href;
   }
 
-  function fetchResumes(dot: HTMLElement | null, onDone: () => void) {
+  function fetchResumes(onDone: () => void) {
     S.status = 'checking';
     chrome.runtime.sendMessage({ action: 'list_resumes' }, (res) => {
       if (chrome.runtime.lastError || res?.error) {

@@ -23,6 +23,7 @@ from app.schemas.autofill import (
     JobMatchResponse,
 )
 from app.services.retrieval import retrieve_for_form
+from app.core.auth import supabase
 from langfuse import observe
 
 
@@ -120,6 +121,7 @@ async def generate_job_match_score(
     """
     context_parts = [f"--- PROFILE ---\n{profile_ctx.strip()}"]
 
+    # Fetch user skills using the supabase client
     skills_res = (
         supabase.table("user_skills")
         .select("proficiency, years_experience, skills(name)")

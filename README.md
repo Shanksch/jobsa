@@ -166,10 +166,10 @@ npm install
 
 # Python backend
 cd services/backend
-python -m venv .venv
+uv venv
 .venv\Scripts\activate        # Windows
 # source .venv/bin/activate   # macOS/Linux
-pip install -e ".[dev]"
+uv pip install -e ".[dev]"
 ```
 
 ### 2. Configure Environment
@@ -266,8 +266,8 @@ jobsa/
 - ✅ Supabase Auth (Email + Google OAuth)
 - ✅ Web Dashboard (Profile, Resumes, Knowledge Base, Applications)
 - ⬜ Resume Tailoring — job-specific resume optimization
-- ⬜ AI Cover Letter Generation
-- ⬜ Job Match Scoring & Analytics Dashboard
+- ✅ Job Match Scoring (Extension API)
+- ⬜ Job Match Analytics Dashboard
 - ⬜ Multi-ATS Autofill (Workday, ICIMS, Taleo)
 - ⬜ Team / Multi-user Support
 
