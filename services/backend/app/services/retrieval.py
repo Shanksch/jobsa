@@ -7,10 +7,12 @@ the top-k most relevant chunks for that profile via pgvector cosine
 distance.
 """
 
-from app.core.auth import supabase
+from typing import Any, cast
+from app.core.auth import supabase as _supabase
 from app.services.embeddings import embed_text, embed_texts
 from langfuse import observe
 
+supabase = cast(Any, _supabase)
 
 def _search(profile_id: str, query_embedding: list[float], top_k: int) -> list[dict]:
     res = supabase.rpc(
@@ -42,6 +44,7 @@ async def retrieve_relevant_chunks(
 async def retrieve_for_form(
     profile_id: str,
     field_labels: list[str],
+    resume_id: str | None = None,
     per_field_k: int = 4,
 ) -> list[dict]:
     """
@@ -59,9 +62,16 @@ async def retrieve_for_form(
 
     embeddings = await embed_texts(field_labels, task_type="RETRIEVAL_QUERY")
 
+    # Over-fetch if filtering by resume to ensure we still get enough relevant chunks
+    fetch_k = per_field_k * 5 if resume_id else per_field_k
+
     seen: dict[str, dict] = {}
     for embedding in embeddings:
-        for chunk in _search(profile_id, embedding, per_field_k):
+        for chunk in _search(profile_id, embedding, fetch_k):
+            # Filter by resume_id if provided
+            if resume_id and chunk.get("source_id") != resume_id and chunk.get("resume_id") != resume_id:
+                continue
+
             existing = seen.get(chunk["id"])
             if not existing or chunk["similarity"] > existing["similarity"]:
                 seen[chunk["id"]] = chunk

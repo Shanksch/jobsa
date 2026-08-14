@@ -56,7 +56,7 @@ async def generate_autofill_answers(
     # 2. Retrieved context: only the chunks relevant to this form's fields,
     #    instead of every resume/experience/skill row on file.
     field_labels = [field.label for field in form_schema.fields]
-    chunks = await retrieve_for_form(profile_id, field_labels, per_field_k=4)
+    chunks = await retrieve_for_form(profile_id, field_labels, resume_id=form_schema.resume_id, per_field_k=4)
     if chunks:
         retrieved_ctx = "\n\n".join(f"[{c['source']}] {c['chunk_text']}" for c in chunks)
         context_parts.append(f"--- RELEVANT BACKGROUND ---\n{retrieved_ctx}")
@@ -156,7 +156,7 @@ async def generate_job_match_score(
     # 2. Retrieve chunks relevant to the JD
     # We embed the whole JD or maybe the first 2000 chars to find relevant experience
     jd_query = payload.job_description[:2000] if payload.job_description else "Job Description"
-    chunks = await retrieve_for_form(profile_id, [jd_query], per_field_k=10)
+    chunks = await retrieve_for_form(profile_id, [jd_query], resume_id=payload.resume_id, per_field_k=10)
 
     if chunks:
         retrieved_ctx = "\n\n".join(f"[{c['source']}] {c['chunk_text']}" for c in chunks)

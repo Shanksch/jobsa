@@ -11,14 +11,14 @@ from typing import Any, cast
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from fastapi.responses import Response
 
-from app.core.auth import get_current_user, supabase
+from app.core.auth import get_current_user, supabase as _supabase
 from app.schemas.resume import ResumeListItem, ResumeResponse, ResumeUpdate
-from app.services.ingestion import reindex_profile
+from app.services.ingestion import index_resume
 from app.services.resume_parser import resume_parser_service
 from app.services.storage import storage_service
 from langfuse import observe, propagate_attributes
 
-supabase = cast(Any, supabase)
+supabase = cast(Any, _supabase)
 
 router = APIRouter(prefix="/resumes", tags=["resumes"])
 
@@ -145,10 +145,10 @@ async def upload_resume(
         # 8. Auto-populate all knowledge base tables
         _do_import_resume_sections(profile["id"], sections)
 
-        # 9. Reindex the profile's resume chunks for vector retrieval
-        await reindex_profile(profile["id"])
+        # 9. Index this specific resume's chunks for vector retrieval
+        await index_resume(profile["id"], new_resume["id"])
 
-        return insert_res.data[0]
+        return cast(dict[str, Any], insert_res.data[0])
 
 
 def _normalize_key(*parts: str | None) -> str:
@@ -556,7 +556,7 @@ async def list_resumes(
 ) -> list[dict]:
     """List all resumes for the user."""
     res = supabase.table("resumes").select("*").eq("profile_id", profile["id"]).execute()
-    return res.data
+    return cast(list[dict[str, Any]], res.data)
 
 
 @router.get("/{resume_id}", response_model=ResumeResponse)
@@ -578,7 +578,7 @@ async def get_resume(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Resume not found",
         )
-    return res.data[0]
+    return cast(dict[str, Any], res.data[0])
 
 
 @router.patch("/{resume_id}", response_model=ResumeResponse)
@@ -614,8 +614,8 @@ async def update_resume(
         update_res = (
             supabase.table("resumes").update(update_data).eq("id", str(resume_id)).execute()
         )
-        return update_res.data[0]
-    return res.data[0]
+        return cast(dict[str, Any], update_res.data[0])
+    return cast(dict[str, Any], res.data[0])
 
 
 @router.delete("/{resume_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -650,6 +650,9 @@ async def delete_resume(
 
     # 2. Delete DB record
     supabase.table("resumes").delete().eq("id", str(resume_id)).execute()
+    
+    # 3. Delete chunks associated with this resume
+    supabase.table("resume_chunks").delete().eq("resume_id", str(resume_id)).execute()
     return None
 
 
@@ -688,8 +691,6 @@ async def import_resume_to_knowledge_base(
     profile: dict = Depends(get_current_user),
 ) -> dict:
     """Import parsed resume sections into the knowledge base models."""
-    from app.core.auth import supabase
-
     profile_id = profile["id"]
 
     res = (
@@ -712,7 +713,7 @@ async def import_resume_to_knowledge_base(
     # 8. Auto-populate all knowledge base tables
     _do_import_resume_sections(profile_id, sections)
 
-    # 9. Reindex the profile's resume chunks for vector retrieval
-    await reindex_profile(profile_id)
+    # 9. Index this specific resume's chunks for vector retrieval
+    await index_resume(profile_id, str(resume_id))
 
     return {"detail": "Successfully imported to knowledge base"}
