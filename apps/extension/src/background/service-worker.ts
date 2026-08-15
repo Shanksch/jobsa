@@ -181,7 +181,6 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
   // Only accept messages from our known origins
   const allowedOrigins = [
     "https://jobsa-web-dashboard.vercel.app",
-    "http://localhost:5173",
   ];
 
   if (!sender.origin || !allowedOrigins.includes(sender.origin)) {
@@ -218,8 +217,8 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
 });
 
 async function getBackendUrl(): Promise<string> {
-  // Hardcoded for local testing!
-  return 'http://127.0.0.1:8000';
+  // Use the deployed backend URL
+  return 'http://34.41.44.108:8000';
 }
 
 const MAX_RETRIES = 7;

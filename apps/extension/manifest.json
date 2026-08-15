@@ -63,7 +63,6 @@
   ],
   "host_permissions": [
     "http://34.41.44.108:8000/*",
-    "http://localhost:8000/*",
     "https://xhnzyznqeojaqqzutdfp.supabase.co/*",
     "https://jobsa-web-dashboard.vercel.app/*"
   ],
@@ -82,8 +81,7 @@
   ],
   "externally_connectable": {
     "matches": [
-      "https://jobsa-web-dashboard.vercel.app/*",
-      "http://localhost:5173/*"
+      "https://jobsa-web-dashboard.vercel.app/*"
     ]
   }
 }
