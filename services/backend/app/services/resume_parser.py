@@ -14,6 +14,7 @@ import pymupdf4llm
 import structlog
 from docx import Document
 from litellm import acompletion
+from app.core.llm_router import router
 from pydantic import BaseModel, Field
 from langfuse import observe
 
@@ -153,38 +154,11 @@ Resume content to parse:
 """
 
         try:
-            if settings.llm_provider == "gemini":
-                from google import genai
-                from google.genai import types
-                
-                # Assume genai.Client() can pick up settings.gemini_api_key either from env or default
-                client = genai.Client()
-                
-                response = await client.aio.models.generate_content(
-                    model=settings.llm_model,
-                    contents=prompt,
-                    config=types.GenerateContentConfig(
-                        response_mime_type="application/json",
-                        response_schema=ResumeSections,
-                        temperature=0.0,
-                    ),
-                )
-                
-                return ResumeSections.model_validate_json(response.text).model_dump()
-            
-            # Fallback for Groq/OpenAI using Instructor + LiteLLM
-            kwargs: dict[str, Any] = {}
-            if settings.llm_provider == "groq" and settings.groq_api_key:
-                kwargs["api_key"] = settings.groq_api_key
-            elif settings.llm_provider == "openai" and settings.openai_api_key:
-                kwargs["api_key"] = settings.openai_api_key
-
-            # Create an async instructor client using litellm's acompletion
-            # Using Mode.JSON is much more reliable for complex nested schemas on Groq/Llama
-            client = instructor.from_litellm(acompletion, mode=instructor.Mode.JSON)
+            # Create an async instructor client using the router
+            client = instructor.from_litellm(router.acompletion, mode=instructor.Mode.JSON)
 
             response_model = await client.chat.completions.create(  # type: ignore[misc]
-                model=settings.litellm_model,
+                model="jobsa-autofill",
                 messages=[
                     {
                         "role": "system",
@@ -194,9 +168,9 @@ Resume content to parse:
                 ],
                 response_model=ResumeSections,
                 temperature=0.0,
-                max_tokens=2000 if "groq" in settings.llm_provider else 8192,
-                **kwargs,
+                max_tokens=8192,
             )
+
 
             # Return as dictionary
             return response_model.model_dump()

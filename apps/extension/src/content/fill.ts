@@ -200,10 +200,11 @@ function comboboxShowsValue(triggerEl: HTMLElement, value: string): boolean {
 
 export async function injectAnswers(
   answers: Record<string, string>,
-  extractedFields: Array<{ id: string; label: string }>,
+  extractedFields: Array<{ id: string; label: string; name?: string }>,
   onProgress?: (fieldId: string, filled: boolean) => void
 ): Promise<FillResult[]> {
   const results: FillResult[] = [];
+  console.log("[JobSA] Backend returned answers:", answers);
 
   for (const field of extractedFields) {
     let value = answers[field.id] as string | boolean;
@@ -228,7 +229,11 @@ export async function injectAnswers(
       continue;
     }
 
-    const element = document.getElementById(field.id) as FormElement | null;
+    let element = document.getElementById(field.id) as FormElement | null;
+    if (!element && field.name) {
+      element = document.querySelector(`[name="${CSS.escape(field.name)}"]`) as FormElement | null;
+    }
+    
     if (!element) {
       results.push({
         fieldId: field.id,

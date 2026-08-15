@@ -13,8 +13,12 @@ and costs more tokens than necessary as a profile's history grows.
 
 import instructor
 from litellm import acompletion
+from app.core.llm_router import router
+
+client = instructor.from_litellm(router.acompletion)
 
 from app.config import settings
+from pydantic import BaseModel
 from app.schemas.autofill import (
     AutofillResponse,
     CategoryScores,
@@ -22,6 +26,13 @@ from app.schemas.autofill import (
     JobMatchRequest,
     JobMatchResponse,
 )
+
+class AnswerModel(BaseModel):
+    field_id: str
+    value: str
+
+class LLMAutofillResponse(BaseModel):
+    answers: list[AnswerModel]
 from app.services.retrieval import retrieve_for_form
 from app.core.auth import supabase
 from langfuse import observe
@@ -76,6 +87,7 @@ async def generate_autofill_answers(
     2. For checkboxes/booleans, return "true" or "false".
     3. For text areas (like Cover Letter, Summary, or Why do you want to work here), generate a concise and professional response based on the candidate's context.
     4. If you genuinely do not know the answer based on the context and it's a specific personal detail (like SSN), return an empty string "".
+    5. VERY IMPORTANT: You must return a JSON object with a single key "answers", which is a list of objects. Each object must have a `field_id` (exactly matching the `id` from the FORM SCHEMA) and a `value`. Do NOT just list the candidate's name and email in order — you MUST read the `label` of each form field carefully and generate the correct answer for that specific question.
     """
 
     user_prompt = f"""
@@ -87,20 +99,23 @@ async def generate_autofill_answers(
     """
 
     # 4. Generate with LLM (unchanged)
-    client = instructor.from_litellm(acompletion)
 
     try:
-        response_model: AutofillResponse = await client.chat.completions.create(  # type: ignore[misc]
-            model=settings.litellm_model,
+        llm_response: LLMAutofillResponse = await client.chat.completions.create(  # type: ignore[misc]
+            model="jobsa-autofill",
             messages=[
                 {"role": "system", "content": system_prompt.strip()},
                 {"role": "user", "content": user_prompt.strip()},
             ],
-            response_model=AutofillResponse,
+            response_model=LLMAutofillResponse,
             temperature=0.2,
         )
-        return response_model
-    except Exception:
+        
+        answers_dict = {ans.field_id: ans.value for ans in llm_response.answers}
+        return AutofillResponse(answers=answers_dict)
+    except Exception as e:
+        import structlog
+        structlog.get_logger().error("generate_autofill_answers_error", error=str(e), exc_info=True)
         return AutofillResponse(answers={})
 
 
@@ -206,15 +221,14 @@ async def generate_job_match_score(
     JOB DESCRIPTION:
     {payload.job_description[:8000]}
 
-    CANDIDATE CONTEXT:
+    CANDIDATE_CONTEXT:
     {full_context}
     """
 
-    client = instructor.from_litellm(acompletion)
-
+    # 3. Generate match score using LLM
     try:
         response_model: JobMatchResponse = await client.chat.completions.create(  # type: ignore[misc]
-            model=settings.litellm_model,
+            model="jobsa-match",
             messages=[
                 {"role": "system", "content": system_prompt.strip()},
                 {"role": "user", "content": user_prompt.strip()},

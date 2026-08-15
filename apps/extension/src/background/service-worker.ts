@@ -42,7 +42,7 @@ chrome.action.onClicked.addListener(async (tab) => {
           });
           // Give it a tiny bit of time to initialize
           setTimeout(() => {
-            chrome.tabs.sendMessage(tab.id!, { action: 'TOGGLE_WIDGET' }).catch(() => { });
+            chrome.tabs.sendMessage(tab.id!, { action: 'OPEN_WIDGET' }).catch(() => { });
           }, 150);
         } catch (injectError) {
           console.error("[JobSA] Failed to dynamically inject widget:", injectError);
@@ -65,6 +65,12 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       chrome.action.setBadgeText({ text: "!", tabId });
       chrome.action.setBadgeBackgroundColor({ color: "#22c55e", tabId });
       console.log(`[JobSA] Form detected on tab ${tabId}: ${_sender.tab?.url}`);
+      chrome.tabs.sendMessage(tabId, { action: 'OPEN_WIDGET' }).catch(() => {});
+      // Safety net: SPAs hydrate *after* document_idle and can wipe our host mid-transition. 
+      // Re-assert open state once hydration settles.
+      setTimeout(() => {
+        chrome.tabs.sendMessage(tabId, { action: 'OPEN_WIDGET' }).catch(() => {});
+      }, 1500);
     }
     sendResponse({ ok: true });
     return;
@@ -212,7 +218,8 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
 });
 
 async function getBackendUrl(): Promise<string> {
-  return 'http://34.41.44.108:8000';
+  // Hardcoded for local testing!
+  return 'http://127.0.0.1:8000';
 }
 
 const MAX_RETRIES = 7;

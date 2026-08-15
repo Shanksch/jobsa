@@ -101,4 +101,4 @@ async def retrieve_for_form(
         if not is_duplicate:
             final_chunks.append(chunk)
 
-    return final_chunks
+    return final_chunks[:20]

@@ -78,10 +78,16 @@ const S: WidgetState = {
 function injectWidget() {
   if (document.getElementById('jobsa-widget-host')) return;
 
-  if (!document.getElementById('jobsa-squeeze-styles')) {
-    const style = document.createElement('style');
-    style.id = 'jobsa-squeeze-styles';
-    style.textContent = `
+  let squeezeStyle = document.getElementById('jobsa-squeeze-styles') as HTMLStyleElement | null;
+  if (!squeezeStyle) {
+    squeezeStyle = document.createElement('style');
+    squeezeStyle.id = 'jobsa-squeeze-styles';
+    squeezeStyle.textContent = `
+      #jobsa-widget-host {
+        position: fixed; top: 0; left: 0; width: 0; height: 0;
+        z-index: 2147483647;
+        pointer-events: none;
+      }
       html.jobsa-squeeze { overflow-x: hidden; }
       html.jobsa-squeeze body {
         transform: translateZ(0);
@@ -91,13 +97,24 @@ function injectWidget() {
         transition: width 220ms ease, margin-inline-end 220ms ease;
       }
     `;
-    document.documentElement.appendChild(style);
+    document.documentElement.appendChild(squeezeStyle);
   }
 
   const host = document.createElement('div');
   host.id = 'jobsa-widget-host';
   // Attach to html, not body, so it stays outside the body transform
   document.documentElement.appendChild(host);
+
+  // Guard against SPAs (like React) wiping out our container during hydration/re-renders
+  const observer = new MutationObserver(() => {
+    if (!host.isConnected) {
+      document.documentElement.appendChild(host);
+    }
+    if (squeezeStyle && !squeezeStyle.isConnected) {
+      document.documentElement.appendChild(squeezeStyle);
+    }
+  });
+  observer.observe(document.documentElement, { childList: true });
 
   const shadow = host.attachShadow({ mode: 'open' });
 
@@ -123,16 +140,52 @@ function injectWidget() {
   style.textContent = WIDGET_CSS;
   shadow.appendChild(style);
 
+  // Trusted Types Policy for environments with strict CSP
+  let ttPolicy: any;
+  if (typeof window !== 'undefined' && (window as any).trustedTypes && (window as any).trustedTypes.createPolicy) {
+    try {
+      ttPolicy = (window as any).trustedTypes.createPolicy('jobsa-policy', {
+        createHTML: (string: string) => string
+      });
+    } catch (e) {
+      console.warn('[JobSA] Could not create trustedTypes policy:', e);
+      // Fallback to default if jobsa-policy is blocked or already exists
+      try {
+        ttPolicy = (window as any).trustedTypes.createPolicy('default', {
+          createHTML: (string: string) => string
+        });
+      } catch (err) {}
+    }
+  }
+
   // ── FAB Button ──
   const fab = document.createElement('button');
   fab.className = 'fab';
-  fab.innerHTML = `<img src="${chrome.runtime.getURL('logo.png')}" alt="JobSA" /><span class="dot"></span>`;
+  const fabHtml = `<img src="${chrome.runtime.getURL('logo.png')}" alt="JobSA" /><span class="dot"></span>`;
+  fab.innerHTML = ttPolicy ? ttPolicy.createHTML(fabHtml) : fabHtml;
   shadow.appendChild(fab);
 
   let panel: HTMLDivElement | null = null;
 
   function openPanel() {
-    if (panel) return;
+    console.log("[JobSA] openPanel called");
+    if (!host.isConnected) {
+      document.documentElement.appendChild(host);
+    }
+    if (squeezeStyle && !squeezeStyle.isConnected) {
+      document.documentElement.appendChild(squeezeStyle);
+    }
+    if (panel) {
+      if (!panel.classList.contains('visible')) {
+        fab.classList.add('open');
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => { panel!.classList.add('visible'); });
+        });
+        document.documentElement.style.setProperty('--jobsa-panel-width', '404px');
+        document.documentElement.classList.add('jobsa-squeeze');
+      }
+      return;
+    }
     panel = document.createElement('div');
     panel.className = 'panel';
     shadow.appendChild(panel);
@@ -149,6 +202,10 @@ function injectWidget() {
   }
 
   function closePanel() {
+    console.log("[JobSA] closePanel called");
+    if (!host.isConnected) {
+      document.documentElement.appendChild(host);
+    }
     if (!panel) return;
     panel.classList.remove('visible');
     fab.classList.remove('open');
@@ -173,12 +230,25 @@ function injectWidget() {
 
   function renderPanel() {
     if (!panel) return;
-    panel.innerHTML = buildHTML();
-    bindEvents(shadow);
+    try {
+      const htmlStr = buildHTML();
+      panel.innerHTML = ttPolicy ? ttPolicy.createHTML(htmlStr) : htmlStr;
+      bindEvents(shadow);
+    } catch (err) {
+      console.error('[JobSA] Error rendering panel:', err);
+    }
   }
 
   fab.addEventListener('click', (e) => { e.stopPropagation(); toggle(); });
-  chrome.runtime.onMessage.addListener((msg) => { if (msg.action === 'TOGGLE_WIDGET') toggle(); });
+  chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => { 
+    if (msg.action === 'TOGGLE_WIDGET') {
+      toggle();
+      sendResponse({ ok: true });
+    } else if (msg.action === 'OPEN_WIDGET') {
+      openPanel();
+      sendResponse({ ok: true });
+    }
+  });
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && panel && e.isTrusted) closePanel(); });
 
   // ── Bootstrap ──
@@ -355,19 +425,19 @@ function buildMatchHTML(sc: JobMatchResponse): string {
   const cats = sc.category_scores;
   const gridHTML = `
     <div class="cat-grid">
-      ${[
+      ${(cats ? [
         { l: 'Required Skills', s: cats.required_skills },
         { l: 'Experience', s: cats.experience_seniority },
         { l: 'Domain Relevance', s: cats.domain_relevance },
         { l: 'Nice-to-Have', s: cats.nice_to_have_skills },
         { l: 'Education', s: cats.education_certifications },
         { l: 'Career Trajectory', s: cats.career_trajectory },
-      ].map(c => `
+      ] : []).map(c => `
         <div style="background:var(--w-card-bg);border:1px solid var(--w-card-border);border-radius:12px;padding:10px">
           <div style="font-size:11px;color:var(--w-muted);font-weight:600;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${c.l}</div>
-          <div style="font-size:16px;font-weight:800;margin-bottom:6px">${c.s}</div>
+          <div style="font-size:16px;font-weight:800;margin-bottom:6px">${c.s || 0}</div>
           <div style="height:4px;background:var(--w-card-border);border-radius:2px;overflow:hidden">
-            <div style="height:100%;width:${c.s}%;background:${c.s >= 75 ? 'var(--w-green)' : c.s >= 50 ? 'var(--w-yellow)' : 'var(--w-red)'};border-radius:2px"></div>
+            <div style="height:100%;width:${c.s || 0}%;background:${(c.s || 0) >= 75 ? 'var(--w-green)' : (c.s || 0) >= 50 ? 'var(--w-yellow)' : 'var(--w-red)'};border-radius:2px"></div>
           </div>
         </div>
       `).join('')}
@@ -402,16 +472,16 @@ function buildMatchHTML(sc: JobMatchResponse): string {
 
       <div style="display:flex;flex-direction:column;gap:8px;background:var(--w-card-bg);border:1px solid var(--w-card-border);border-radius:14px;padding:12px">
         <details open>
-          <summary style="font-size:13px;font-weight:700;cursor:pointer;list-style:none;user-select:none;display:flex;align-items:center">✅ Matched Requirements (${sc.matched_requirements.length})</summary>
-          <div style="padding-top:8px">${reqPills(sc.matched_requirements, 'match')}</div>
+          <summary style="font-size:13px;font-weight:700;cursor:pointer;list-style:none;user-select:none;display:flex;align-items:center">✅ Matched Requirements (${(sc.matched_requirements || []).length})</summary>
+          <div style="padding-top:8px">${reqPills(sc.matched_requirements || [], 'match')}</div>
         </details>
-        ${sc.missing_requirements.length > 0 ? `
+        ${(sc.missing_requirements || []).length > 0 ? `
         <div style="height:1px;background:var(--w-card-border);margin:4px 0"></div>
         <details open>
           <summary style="font-size:13px;font-weight:700;cursor:pointer;list-style:none;user-select:none;display:flex;align-items:center">⚠️ Missing Requirements (${sc.missing_requirements.length})</summary>
           <div style="padding-top:8px">${reqPills(sc.missing_requirements, 'miss')}</div>
         </details>` : ''}
-        ${sc.inferred_transferable_skills.length > 0 ? `
+        ${(sc.inferred_transferable_skills || []).length > 0 ? `
         <div style="height:1px;background:var(--w-card-border);margin:4px 0"></div>
         <details>
           <summary style="font-size:13px;font-weight:700;cursor:pointer;list-style:none;user-select:none;display:flex;align-items:center;color:var(--w-muted)">💡 Transferable Skills (${sc.inferred_transferable_skills.length})</summary>
@@ -419,7 +489,7 @@ function buildMatchHTML(sc: JobMatchResponse): string {
         </details>` : ''}
       </div>
 
-      ${sc.red_flags.length > 0 ? `
+      ${(sc.red_flags || []).length > 0 ? `
       <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:14px;padding:14px;color:#991b1b">
         <div style="font-size:13px;font-weight:800;margin-bottom:6px;display:flex;align-items:center;gap:6px">🚩 Red Flags</div>
         <ul style="font-size:13px;margin:0;padding-left:18px;line-height:1.5">
@@ -450,12 +520,14 @@ function buildSignedOutHTML(): string {
 }
 
 function buildHTML(): string {
-  const opts = S.resumes.map(r => `<option value="${r.id}" ${r.id === S.selectedResumeId ? 'selected' : ''}>${r.name}</option>`).join('');
+  const safeResumes = Array.isArray(S.resumes) ? S.resumes : [];
+  const opts = safeResumes.map(r => `<option value="${r.id}" ${r.id === S.selectedResumeId ? 'selected' : ''}>${r.name}</option>`).join('');
 
   let resHTML = '';
-  if (S.results) {
-    const ok = S.results.filter(r => r.status === 'success').length;
-    const rows = S.results.map(r => {
+  const safeResults = Array.isArray(S.results) ? S.results : (S.results ? [] : null);
+  if (safeResults) {
+    const ok = safeResults.filter(r => r.status === 'success').length;
+    const rows = safeResults.map(r => {
       let icon = ''; let color = ''; let opac = '1';
       if (r.status === 'loading') {
         icon = '<span style="display:inline-block;width:12px;height:12px;border:2px solid #ddd;border-top-color:#888;border-radius:50%;animation:spin 1s linear infinite"></span>';
@@ -470,7 +542,7 @@ function buildHTML(): string {
     resHTML = `
       <details open style="margin-top:16px;border-top:1px solid var(--w-card-border);padding-top:16px;">
         <summary style="display:flex;align-items:center;justify-content:space-between;font-size:13px;font-weight:700;cursor:pointer;list-style:none;user-select:none;margin-bottom:12px">
-          <span style="display:flex;align-items:center;gap:8px">📋 Your Autofill Information <span style="font-size:10px;font-weight:600;background:var(--w-card-border);padding:2px 6px;border-radius:10px;color:var(--w-muted)">${ok}/${S.results.length}</span></span>
+          <span style="display:flex;align-items:center;gap:8px">📋 Your Autofill Information <span style="font-size:10px;font-weight:600;background:var(--w-card-border);padding:2px 6px;border-radius:10px;color:var(--w-muted)">${ok}/${safeResults.length}</span></span>
         </summary>
         <div style="max-height:240px;overflow-y:auto;padding-right:4px">${rows}</div>
         <div style="margin-top:12px">
@@ -505,8 +577,8 @@ function buildHTML(): string {
               📄 Target Resume
             </div>
             <div style="padding:12px 16px;display:flex;flex-direction:column;gap:12px">
-              <select id="rs" style="width:100%;padding:10px 12px;border:1px solid var(--w-card-border);border-radius:10px;font-size:13px;font-weight:500;font-family:inherit;background:var(--w-bg);color:var(--w-text);cursor:pointer" ${S.resumes.length === 0 ? 'disabled' : ''}>
-                ${S.resumes.length === 0 ? '<option>No resumes</option>' : opts}
+              <select id="rs" style="width:100%;padding:10px 12px;border:1px solid var(--w-card-border);border-radius:10px;font-size:13px;font-weight:500;font-family:inherit;background:var(--w-bg);color:var(--w-text);cursor:pointer" ${safeResumes.length === 0 ? 'disabled' : ''}>
+                ${safeResumes.length === 0 ? '<option>No resumes</option>' : opts}
               </select>
               <button id="match-btn" style="width:100%;padding:10px;border:none;background:var(--w-green-light);color:var(--w-green-dark);border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:6px" ${S.isMatching || !S.selectedResumeId ? 'disabled' : ''}>
                 ${S.isMatching ? '<span style="display:inline-block;width:12px;height:12px;border:2px solid var(--w-green-dark);border-top-color:transparent;border-radius:50%;animation:spin 1s linear infinite"></span> Analyzing Match...' : '✨ Check Match Score'}
@@ -537,39 +609,68 @@ function extractFormSchema(): FormField[] {
   const els = document.querySelectorAll('input, select, textarea');
   const rg = new Set<string>();
   els.forEach(el => {
-    const e = el as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
-    if (e.type === 'submit' || e.type === 'button' || e.disabled || ('readOnly' in e && e.readOnly)) return;
-    const hidden = e.type === 'hidden' || e.style.display === 'none' || e.style.visibility === 'hidden' || e.style.opacity === '0' || e.offsetParent === null || (!e.getBoundingClientRect().width && !e.getBoundingClientRect().height);
-    if (hidden && e.tagName.toLowerCase() !== 'select') return;
-    if (!e.name && !e.id) return;
-    if (e.tagName.toLowerCase() === 'input') {
-      const r = e.getAttribute('role'), a = e.getAttribute('aria-autocomplete'), c = e.className || '';
-      if (r === 'combobox' || a === 'list' || (typeof c === 'string' && (c.includes('select2') || c.includes('react-select')))) {
-        const ct = e.closest('div, .field, .form-group, label');
-        if (ct?.querySelector('select')) return;
+    try {
+      const e = el as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
+      if (e.type === 'submit' || e.type === 'button' || e.disabled || ('readOnly' in e && e.readOnly)) return;
+      const hidden = e.type === 'hidden' || e.style.display === 'none' || e.style.visibility === 'hidden' || e.style.opacity === '0' || e.offsetParent === null || (!e.getBoundingClientRect().width && !e.getBoundingClientRect().height);
+      if (hidden && e.tagName.toLowerCase() !== 'select') return;
+      if (!e.name && !e.id) return;
+      if (e.tagName.toLowerCase() === 'input') {
+        const r = e.getAttribute('role'), a = e.getAttribute('aria-autocomplete'), c = e.className || '';
+        if (r === 'combobox' || a === 'list' || (typeof c === 'string' && (c.includes('select2') || c.includes('react-select')))) {
+          const ct = e.closest('div, .field, .form-group, label');
+          if (ct?.querySelector('select')) return;
+        }
       }
-    }
-    if (e.type === 'radio' && e.name) { if (rg.has(e.name)) return; rg.add(e.name); }
+      if (e.type === 'radio' && e.name) { if (rg.has(e.name)) return; rg.add(e.name); }
 
-    let lbl = '';
-    const id = e.id;
-    if (id) { try { const l = document.querySelector(`label[for="${CSS.escape(id)}"]`) as HTMLLabelElement; if (l) lbl = l.innerText.trim(); } catch { /* ignore */ } }
-    if (!lbl && e.parentElement?.tagName.toLowerCase() === 'label') lbl = e.parentElement.innerText.replace((e as HTMLElement).innerText || '', '').trim();
-    if (!lbl) lbl = e.getAttribute('aria-label') || '';
-    if (!lbl && 'placeholder' in e) lbl = e.placeholder || '';
-    if (!lbl && e.type === 'radio' && e.name) { const fs = e.closest('fieldset'); if (fs) { const lg = fs.querySelector('legend'); if (lg) lbl = lg.innerText.trim(); } }
-    if (!lbl) lbl = e.name || id || 'Unknown';
+      let lbl = '';
+      const id = e.id;
+      if (id) { try { const l = document.querySelector(`label[for="${CSS.escape(id)}"]`) as HTMLLabelElement; if (l) lbl = l.innerText.trim(); } catch { /* ignore */ } }
+      if (!lbl && e.parentElement?.tagName?.toLowerCase() === 'label') lbl = e.parentElement.innerText.replace((e as HTMLElement).innerText || '', '').trim();
+      if (!lbl) lbl = e.getAttribute('aria-label') || '';
+      
+      // Robust Container Heuristic (climb DOM and check previous siblings)
+      if (!lbl) {
+        let current = e as HTMLElement;
+        while (current && current.tagName.toLowerCase() !== 'form' && current.tagName.toLowerCase() !== 'body') {
+           let prev = current.previousElementSibling as HTMLElement;
+           while (prev) {
+             const t = prev.innerText?.trim();
+             if (typeof t === 'string' && t.length > 0) {
+                // If it's a huge block of text, it might be a description, but we take the first line
+                lbl = t.split('\n')[0]?.trim() || '';
+                break;
+             }
+             prev = prev.previousElementSibling as HTMLElement;
+           }
+           if (lbl) break;
+           current = current.parentElement as HTMLElement;
+        }
+      }
 
-    const f: FormField = { id: id || Math.random().toString(36).substring(7), name: e.name || '', type: e.type || e.tagName.toLowerCase(), label: lbl, required: e.required };
-    if (!e.id) e.id = f.id;
-    if (e.tagName.toLowerCase() === 'select') { f.options = Array.from((e as HTMLSelectElement).options).map(o => o.text.trim()).filter(Boolean); }
-    else if (e.type === 'radio' && e.name) {
-      f.options = Array.from(document.querySelectorAll(`input[type="radio"][name="${CSS.escape(e.name)}"]`)).map(r => {
-        const ri = r as HTMLInputElement; const rl = ri.id ? document.querySelector(`label[for="${CSS.escape(ri.id)}"]`) : null;
-        return (rl as HTMLLabelElement)?.innerText?.trim() || ri.value || 'Option';
-      });
+      if (!lbl && 'placeholder' in e) lbl = e.placeholder || '';
+      if (!lbl && e.type === 'radio' && e.name) { const fs = e.closest('fieldset'); if (fs) { const lg = fs.querySelector('legend'); if (lg) lbl = lg.innerText.trim(); } }
+      if (!lbl) lbl = e.name || id || 'Unknown';
+      
+      // Clean up common artifacts (like trailing required asterisks)
+      lbl = lbl.replace(/\s*\*\s*$/, '').trim();
+
+      const f: FormField = { id: id || Math.random().toString(36).substring(7), name: e.name || '', type: e.type || e.tagName.toLowerCase(), label: lbl, required: e.required };
+      if (!e.id) e.id = f.id;
+      if (e.tagName.toLowerCase() === 'select') { f.options = Array.from((e as HTMLSelectElement).options).map(o => o.text.trim()).filter(Boolean); }
+      else if (e.type === 'radio' && e.name) {
+        f.options = Array.from(document.querySelectorAll(`input[type="radio"][name="${CSS.escape(e.name)}"]`)).map(r => {
+          const ri = r as HTMLInputElement;
+          let rl = null;
+          if (ri.id) { try { rl = document.querySelector(`label[for="${CSS.escape(ri.id)}"]`); } catch (err) {} }
+          return (rl as HTMLLabelElement)?.innerText?.trim() || ri.value || 'Option';
+        });
+      }
+      fields.push(f);
+    } catch (err) {
+      console.warn('[JobSA] Failed to extract a form field:', err);
     }
-    fields.push(f);
   });
   return fields;
 }
@@ -605,7 +706,7 @@ const WIDGET_CSS = `
     box-shadow: 0 4px 16px var(--w-shadow);
     cursor: pointer; display: flex; align-items: center; justify-content: center;
     transition: transform .2s cubic-bezier(.34,1.56,.64,1), box-shadow .2s;
-    z-index: 2;
+    z-index: 2; pointer-events: auto;
   }
   .fab:hover { transform: scale(1.08); box-shadow: 0 6px 24px var(--w-shadow); }
   .fab:active { transform: scale(.95); }
@@ -618,6 +719,7 @@ const WIDGET_CSS = `
     width: 380px; height: calc(100vh - 24px); max-height: calc(100vh - 24px);
     border-radius: 16px; background: var(--w-bg);
     border: 1px solid var(--w-border);
+    pointer-events: auto;
     box-shadow: -10px 0 40px var(--w-shadow);
     display: flex; flex-direction: column;
     font-size: 14px; color: var(--w-text); line-height: 1.5;

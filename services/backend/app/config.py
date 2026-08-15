@@ -45,9 +45,11 @@ class Settings(BaseSettings):
     def cors_origin_list(self) -> list[str]:
         return [origin.strip() for origin in self.cors_origins.split(",")]
 
-    # ─── LLM (via LiteLLM — supports Groq, OpenAI, Ollama, etc.) ──
-    llm_provider: str = "groq"
-    llm_model: str = "llama-3.1-8b-instant"
+    # ─── LLM (via LiteLLM Router) ──────────────────────────
+    autofill_primary_model: str = "gemini/gemini-3.5-flash-lite"
+    autofill_fallback_model: str = "groq/openai/gpt-oss-20b"
+    match_primary_model: str = "gemini/gemini-3.5-flash-lite"
+    match_fallback_model: str = "groq/openai/gpt-oss-120b"
     groq_api_key: str = ""
     openai_api_key: str = ""
     openai_api_base: str = ""
@@ -67,17 +69,6 @@ class Settings(BaseSettings):
     def langfuse_enabled(self) -> bool:
         return bool(self.langfuse_public_key and self.langfuse_secret_key)
 
-
-    @property
-    def litellm_model(self) -> str:
-        """Build the LiteLLM model identifier string."""
-        if self.llm_provider == "groq":
-            return f"groq/{self.llm_model}"
-        elif self.llm_provider == "openai":
-            return self.llm_model  # OpenAI models don't need prefix
-        elif self.llm_provider == "ollama":
-            return f"ollama/{self.llm_model}"
-        return f"{self.llm_provider}/{self.llm_model}"
 
     # ─── File Upload ───────────────────────────────────────
     max_upload_size_mb: int = 10
