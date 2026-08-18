@@ -236,6 +236,14 @@ def _do_import_resume_sections(profile_id: str, sections: dict):
 
     # Education
     if sections.get("education"):
+        existing_rows = (
+            supabase.table("education")
+            .select("id, institution, degree, description")
+            .eq("profile_id", profile_id)
+            .execute()
+            .data
+            or []
+        )
         for edu in sections["education"]:
             try:
                 try:
@@ -246,14 +254,6 @@ def _do_import_resume_sections(profile_id: str, sections: dict):
                 inst = edu.get("institution", "Unknown")
                 deg = edu.get("degree", "Unknown")
 
-                existing_rows = (
-                    supabase.table("education")
-                    .select("id, institution, degree, description")
-                    .eq("profile_id", profile_id)
-                    .execute()
-                    .data
-                    or []
-                )
                 match = _find_similar_row(
                     _normalize_key(inst, deg),
                     existing_rows,
@@ -290,19 +290,19 @@ def _do_import_resume_sections(profile_id: str, sections: dict):
 
     # Work Experience
     if sections.get("work_experience"):
+        existing_rows = (
+            supabase.table("work_experience")
+            .select("id, company, title, description, highlights, technologies")
+            .eq("profile_id", profile_id)
+            .execute()
+            .data
+            or []
+        )
         for work in sections["work_experience"]:
             try:
                 comp = work.get("company", "Unknown")
                 job_title = work.get("title", "Unknown")
 
-                existing_rows = (
-                    supabase.table("work_experience")
-                    .select("id, company, title, description, highlights, technologies")
-                    .eq("profile_id", profile_id)
-                    .execute()
-                    .data
-                    or []
-                )
                 match = _find_similar_row(
                     _normalize_key(comp, job_title),
                     existing_rows,
@@ -343,18 +343,18 @@ def _do_import_resume_sections(profile_id: str, sections: dict):
 
     # Projects
     if sections.get("projects"):
+        existing_rows = (
+            supabase.table("projects")
+            .select("id, name, description, technologies, highlights")
+            .eq("profile_id", profile_id)
+            .execute()
+            .data
+            or []
+        )
         for proj in sections["projects"]:
             try:
                 proj_name = proj.get("name", "Unknown")
 
-                existing_rows = (
-                    supabase.table("projects")
-                    .select("id, name, description, technologies, highlights")
-                    .eq("profile_id", profile_id)
-                    .execute()
-                    .data
-                    or []
-                )
                 match = _find_similar_row(
                     _normalize_key(proj_name),
                     existing_rows,
@@ -397,6 +397,9 @@ def _do_import_resume_sections(profile_id: str, sections: dict):
 
     # Skills
     if sections.get("skills"):
+        # Fetch the global skills table ONCE outside the loop (Massive N+1 optimization)
+        all_skills = supabase.table("skills").select("id, name").execute().data or []
+        
         for skill in sections["skills"]:
             try:
                 try:
@@ -410,17 +413,6 @@ def _do_import_resume_sections(profile_id: str, sections: dict):
 
                 skill_name = skill.get("name", "Unknown").strip()
 
-                # 1. Fetch-or-create global skill. Case/spacing variants
-                # ("TensorFlow" vs "Tensorflow") are the same skill, so
-                # match against ALL existing skill names fuzzily (high
-                # threshold — this table is shared across every profile,
-                # so we'd rather insert one avoidable near-duplicate than
-                # wrongly merge two different skills). Note: this still
-                # won't catch pure abbreviations like "GCP" vs "Google
-                # Cloud Platform" — those share no character sequence for
-                # fuzzy matching to key off; that needs an explicit alias
-                # table if it matters to you.
-                all_skills = supabase.table("skills").select("id, name").execute().data or []
                 skill_match = _find_similar_row(
                     _normalize_key(skill_name),
                     all_skills,
@@ -443,6 +435,7 @@ def _do_import_resume_sections(profile_id: str, sections: dict):
                     )
                     if insert_res.data:
                         skill_id = insert_res.data[0]["id"]
+                        all_skills.append({"id": skill_id, "name": skill_name}) # Add to local cache
                     else:
                         continue
 
@@ -495,23 +488,19 @@ def _do_import_resume_sections(profile_id: str, sections: dict):
 
     # Certifications
     if sections.get("certifications"):
+        existing_rows = (
+            supabase.table("certifications")
+            .select("id, name, issuer, credential_id")
+            .eq("profile_id", profile_id)
+            .execute()
+            .data
+            or []
+        )
         for cert in sections["certifications"]:
             try:
                 cert_name = cert.get("name", "Unknown")
                 cert_issuer = cert.get("issuer")
 
-                existing_rows = (
-                    supabase.table("certifications")
-                    .select("id, name, issuer, credential_id")
-                    .eq("profile_id", profile_id)
-                    .execute()
-                    .data
-                    or []
-                )
-                # Compare on name+issuer together so e.g. "Deloitte Data
-                # Analytics Job Simulation" and "Data Analytics Job
-                # Simulation - issued by Deloite (Forage)" — same cert,
-                # issuer name even typo'd differently — still match.
                 match = _find_similar_row(
                     _normalize_key(cert_name, cert_issuer),
                     existing_rows,

@@ -65,9 +65,18 @@ async def retrieve_for_form(
     # Over-fetch if filtering by resume to ensure we still get enough relevant chunks
     fetch_k = per_field_k * 5 if resume_id else per_field_k
 
+    import asyncio
+    
+    # Run all synchronous Supabase RPC searches concurrently in threads
+    search_tasks = [
+        asyncio.to_thread(_search, profile_id, embedding, fetch_k) 
+        for embedding in embeddings
+    ]
+    all_chunks_lists = await asyncio.gather(*search_tasks)
+
     seen: dict[str, dict] = {}
-    for embedding in embeddings:
-        for chunk in _search(profile_id, embedding, fetch_k):
+    for chunks in all_chunks_lists:
+        for chunk in chunks:
             # Filter by resume_id if provided
             if resume_id and chunk.get("source_id") != resume_id and chunk.get("resume_id") != resume_id:
                 continue
