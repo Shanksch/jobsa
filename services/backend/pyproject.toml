@@ -58,3 +58,4 @@ ignore_missing_imports = true
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+addopts = "-v --tb=long --log-file=tests/logs/test_results.log --log-file-level=DEBUG --junitxml=tests/logs/test_results.xml"

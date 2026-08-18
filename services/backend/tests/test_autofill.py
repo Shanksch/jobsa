@@ -21,17 +21,17 @@ async def test_autofill_endpoint(client: AsyncClient, test_profile: dict):
         ],
     }
 
-    from app.schemas.autofill import AutofillResponse
+    from app.services.rag_engine import LLMAutofillResponse, AnswerModel
 
-    mock_response = AutofillResponse(answers={"first_name": "John"})
+    mock_response = LLMAutofillResponse(answers=[AnswerModel(field_id="first_name", value="John")])
 
     with (
-        patch("app.services.rag_engine.instructor.from_litellm") as mock_instructor,
+        patch("app.services.rag_engine.client") as mock_client,
         patch("app.services.rag_engine.retrieve_for_form", new_callable=AsyncMock) as mock_retrieve,
     ):
-        mock_client = AsyncMock()
-        mock_client.chat.completions.create.return_value = mock_response
-        mock_instructor.return_value = mock_client
+        mock_chat_completion = AsyncMock()
+        mock_chat_completion.return_value = mock_response
+        mock_client.chat.completions.create = mock_chat_completion
 
         mock_retrieve.return_value = []
         response = await client.post("/api/autofill", json=form_schema)

@@ -33,12 +33,14 @@ async def test_upload_resume(client: AsyncClient, test_profile: dict):
         patch(
             "app.api.routes.resumes.resume_parser_service.parse_resume", new_callable=AsyncMock
         ) as mock_parse,
-        patch("app.api.routes.resumes.reindex_profile", new_callable=AsyncMock) as mock_reindex,
+        patch("app.api.routes.resumes.index_resume", new_callable=AsyncMock) as mock_index_resume,
+        patch("app.api.routes.resumes._do_import_resume_sections") as mock_do_import,
         patch("app.api.routes.resumes.supabase.table") as mock_table,
     ):
         mock_upload.return_value = "default_user/resumes/uuid_resume.pdf"
         mock_parse.return_value = mock_parsed
-        mock_reindex.return_value = 0
+        mock_index_resume.return_value = 0
+        mock_do_import.return_value = None
 
         mock_execute = MagicMock()
         # Return what the endpoint expects from insert_res.data[0]
@@ -61,7 +63,21 @@ async def test_upload_resume(client: AsyncClient, test_profile: dict):
         )
         mock_insert = MagicMock()
         mock_insert.insert.return_value = mock_execute
-        mock_table.return_value = mock_insert
+        
+        # update()
+        mock_update = MagicMock()
+        mock_update.update.return_value.eq.return_value.execute.return_value = MagicMock()
+        
+        def mock_table_side_effect(name):
+            mock = MagicMock()
+            if name == "resumes":
+                mock.insert.return_value = mock_execute
+                mock.update.return_value = mock_update.update.return_value
+            elif name == "user_profiles":
+                mock.update.return_value = mock_update.update.return_value
+            return mock
+            
+        mock_table.side_effect = mock_table_side_effect
 
         file_content = b"%PDF-1.4 test file content"
         files = {"file": ("resume.pdf", io.BytesIO(file_content), "application/pdf")}

@@ -137,7 +137,7 @@ class ResumeParserService:
     async def structure_resume(self, markdown_content: str) -> dict:
         """Use LiteLLM and instructor to extract structured fields from the markdown resume content."""
         logger.info(
-            "structuring_resume_llm", provider=settings.llm_provider, model=settings.llm_model
+            "structuring_resume_llm", model="jobsa-autofill"
         )
 
         # Truncate content to ~12000 characters (approx 3000 tokens) to ensure it fits safely inside Groq's strict 6000 TPM limits

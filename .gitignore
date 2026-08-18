@@ -51,6 +51,9 @@ apps/extension/dist/
 # Logs
 *.log
 npm-debug.log*
+services/backend/tests/logs/*.log
+services/backend/tests/logs/*.xml
+services/backend/tests/logs/*.txt
 
 # Coverage
 coverage/

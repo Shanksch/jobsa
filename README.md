@@ -222,7 +222,8 @@ cd apps/extension && npm run build
 
 ```bash
 # Backend
-cd services/backend && .venv\Scripts\activate && pytest tests/ -v
+cd services/backend
+uv run pytest
 
 # Frontend
 npm run typecheck && npm run lint
