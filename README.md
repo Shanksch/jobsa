@@ -100,7 +100,7 @@ graph TB
         STORE["Storage<br/><small>Resume files</small>"]
     end
 
-    LLM["🤖 Groq<br/><small>Llama 3.1 8B via LiteLLM</small>"]
+    LLM["🤖 Gemini & Groq<br/><small>Primary: gemini-3.5-flash-lite via LiteLLM</small>"]
 
     EXT -->|"Autofill requests"| API
     DASH -->|"Resume upload"| API
@@ -139,7 +139,8 @@ graph TB
 | 🔌 Extension | Chrome Manifest V3 |
 | 🐍 Backend | FastAPI · Pydantic v2 · structlog |
 | 🗄️ Database | Supabase (PostgreSQL + pgvector + Auth + Storage) |
-| 🤖 LLM | Groq (Llama 3.1 8B) via LiteLLM |
+| 🤖 LLM | Gemini (gemini-3.5-flash-lite) & Groq via LiteLLM Router |
+| 🔍 Observability | Langfuse |
 | 🔢 Embeddings | Gemini (gemini-embedding-001) |
 | 📄 Resume Parsing | pymupdf4llm + instructor |
 | 🚀 CI/CD | GitHub Actions |
@@ -153,7 +154,9 @@ graph TB
 - Node.js 22+ and npm 10+
 - Python 3.12+
 - A [Supabase](https://supabase.com) project (free tier)
-- A [Groq](https://console.groq.com) API key (free tier)
+- A [Gemini](https://aistudio.google.com/) API key
+- (Optional) A [Groq](https://console.groq.com) API key
+- (Optional) A [Langfuse](https://langfuse.com) API key for observability
 
 ### 1. Clone & Install
 
@@ -183,8 +186,12 @@ SUPABASE_ANON_KEY=your_anon_key
 SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
 DATABASE_URL=postgresql+asyncpg://postgres:password@db.your-project.supabase.co:5432/postgres
 
-# LLM
+# LLM & Observability
+GEMINI_API_KEY=your_gemini_api_key
 GROQ_API_KEY=your_groq_api_key
+LANGFUSE_PUBLIC_KEY=
+LANGFUSE_SECRET_KEY=
+LANGFUSE_HOST=https://cloud.langfuse.com
 
 # Frontend (apps/web-dashboard/.env)
 VITE_SUPABASE_URL=https://your-project.supabase.co
@@ -293,7 +300,7 @@ This project is licensed under the [MIT License](LICENSE).
 
 ## Acknowledgements
 
-Built with [FastAPI](https://fastapi.tiangolo.com), [React](https://react.dev), [Supabase](https://supabase.com), [Groq](https://groq.com), [LiteLLM](https://github.com/BerriAI/litellm), [TanStack Query](https://tanstack.com/query), [Radix UI](https://radix-ui.com), [Turborepo](https://turbo.build), and [FastEmbed](https://github.com/qdrant/fastembed).
+Built with [FastAPI](https://fastapi.tiangolo.com), [React](https://react.dev), [Supabase](https://supabase.com), [Gemini](https://aistudio.google.com/), [Groq](https://groq.com), [LiteLLM](https://github.com/BerriAI/litellm), [Langfuse](https://langfuse.com), [TanStack Query](https://tanstack.com/query), [Radix UI](https://radix-ui.com), and [Turborepo](https://turbo.build).
 
 ---
 

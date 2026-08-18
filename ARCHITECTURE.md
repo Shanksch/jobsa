@@ -67,15 +67,15 @@
 - Reduces latency for simple reads/writes (profile edits go straight to Supabase, not through a Python server).
 - The `api.ts` client abstracts this split — consumers call `api.profile.update()` or `api.resumes.upload()` without knowing which backend they hit.
 
-### 4. Groq (Llama 3.1 8B) via LiteLLM
+### 4. Gemini & Groq via LiteLLM Router
 
-**Choice:** Groq's hosted Llama models accessed through LiteLLM, replacing local Ollama.
+**Choice:** Gemini (`gemini-3.5-flash-lite`) as the primary model with Groq as a fallback, accessed through LiteLLM Router.
 
 **Why:**
-- **Developer experience:** No need to download 4+ GB models or manage GPU resources locally. A single API key is all that's needed.
-- **LiteLLM abstraction:** The `litellm_model` computed property in `config.py` builds the provider-prefixed model string (`groq/llama-3.1-8b-instant`). Switching to OpenAI, Anthropic, or back to Ollama requires changing two env vars (`LLM_PROVIDER`, `LLM_MODEL`) — no code changes.
+- **Primary Model:** Gemini 3.5 Flash Lite is extremely fast and cost-effective, providing excellent instruction following for structured outputs.
+- **Resilience:** By using LiteLLM Router, the system automatically falls back to Groq models (e.g., `gpt-oss-20b` or `gpt-oss-120b`) if Gemini is unavailable or rate-limited.
 - **Instructor for structured output:** Resume parsing uses `instructor.from_litellm()` with a Pydantic `ResumeSections` model to guarantee the LLM returns valid structured JSON. This is more reliable than manual JSON parsing with regex fallbacks.
-- **Cost:** Groq's free tier provides ~30 RPM — sufficient for development and early usage.
+- **Cost & Speed:** Both Gemini and Groq offer exceptional speed, essential for autofilling applications in real time without making the user wait.
 
 ### 5. Remote Embeddings with Gemini (gemini-embedding-001)
 
@@ -232,7 +232,7 @@
 | **Extension** | Chrome Manifest V3 | Required for Chrome Web Store distribution |
 | **Backend** | FastAPI, Pydantic v2, structlog | Async-native, automatic OpenAPI docs, structured logging |
 | **Database** | Supabase (PostgreSQL + pgvector) | Managed hosting, vector search, RLS, Auth, Storage |
-| **LLM** | Groq (Llama 3.1 8B) via LiteLLM | Free tier, provider-agnostic abstraction |
+| **LLM** | Gemini (3.5-flash-lite) & Groq via LiteLLM Router | Fast primary with fallback resilience |
 | **Observability** | Langfuse | Tracing, token counting, and debugging LLM calls |
 | **Embeddings** | Gemini (gemini-embedding-001) | Remote batching, 768-dim L2 normalized vectors |
 | **Chunking** | Gemini (gemini-3.6-flash) | Intelligent semantic chunking of unstructured text |
@@ -282,6 +282,6 @@ All routes require `Authorization: Bearer <supabase_jwt>`.
 | Component | Platform | Notes |
 |---|---|---|
 | Web Dashboard | Vercel | Static SPA, set `VITE_*` env vars |
-| Backend API | Google Cloud VM | Docker container, set all env vars |
+| Backend API | Back4App Containers | Docker container, set all env vars |
 | Chrome Extension | Chrome Web Store | Build → zip `dist/` → publish |
 | Database/Auth/Storage | Supabase | Already hosted |
