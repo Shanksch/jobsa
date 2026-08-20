@@ -66,15 +66,18 @@ async def retrieve_for_form(
     fetch_k = per_field_k * 5 if resume_id else per_field_k
 
     import asyncio
+    from concurrent.futures import ThreadPoolExecutor
     
-    # Run all synchronous Supabase RPC searches concurrently in threads
-    search_tasks = [
-        asyncio.to_thread(_search, profile_id, embedding, fetch_k) 
-        for embedding in embeddings
-    ]
-    all_chunks_lists = await asyncio.gather(*search_tasks)
-
     seen: dict[str, dict] = {}
+    
+    with ThreadPoolExecutor(max_workers=50) as executor:
+        loop = asyncio.get_running_loop()
+        search_tasks = [
+            loop.run_in_executor(executor, _search, profile_id, embedding, fetch_k)
+            for embedding in embeddings
+        ]
+        all_chunks_lists = await asyncio.gather(*search_tasks)
+
     for chunks in all_chunks_lists:
         for chunk in chunks:
             # Filter by resume_id if provided

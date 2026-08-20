@@ -1,17 +1,28 @@
+from typing import cast
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from supabase import create_client
+from supabase import create_client, acreate_client
 
 from app.config import settings
 
 security = HTTPBearer()
 
 supabase = None
+_asupabase_client = None
 if settings.supabase_configured:
     supabase = create_client(
         settings.supabase_url,
         settings.supabase_service_role_key or settings.supabase_anon_key,
     )
+
+async def get_asupabase():
+    global _asupabase_client
+    if _asupabase_client is None and settings.supabase_configured:
+        _asupabase_client = await acreate_client(
+            settings.supabase_url,
+            settings.supabase_service_role_key or settings.supabase_anon_key,
+        )
+    return _asupabase_client
 
 
 async def get_current_user(
@@ -31,6 +42,8 @@ async def get_current_user(
     try:
         # Use the supabase client to get user by JWT
         res = supabase.auth.get_user(token)
+        if res is None:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
         user = res.user
         if not user or not user.email:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
@@ -49,10 +62,10 @@ async def get_current_user(
         new_profile = {
             "id": user.id,
             "email": user.email,
-            "full_name": user.user_metadata.get("full_name", "User"),
+            "full_name": user.user_metadata.get("full_name", "User") if user.user_metadata else "User",
             "summary": "Career profile summary",
         }
         insert_res = supabase.table("user_profiles").insert(new_profile).execute()
-        return insert_res.data[0]
+        return cast(dict, insert_res.data[0]) if insert_res.data else {}
 
-    return profiles[0]
+    return cast(dict, profiles[0])

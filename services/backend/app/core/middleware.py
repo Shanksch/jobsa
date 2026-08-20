@@ -30,12 +30,12 @@ class RequestIDMiddleware(BaseHTTPMiddleware):
         structlog.contextvars.bind_contextvars(
             request_id=request_id,
             method=request.method,
-            path=str(request.url.path),
+            path=request.url.path,
         )
 
         logger.info(
             "request_started",
-            query=str(request.url.query) if request.url.query else None,
+            query=request.url.query if request.url.query else None,
         )
 
         response = await call_next(request)

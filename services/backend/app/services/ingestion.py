@@ -17,20 +17,19 @@ noticeably slow.
 """
 
 from typing import Any, cast
-from app.core.auth import supabase as _supabase
+from app.core.auth import supabase as _supabase, get_asupabase
 from app.services.chunking import chunk_text_semantic
 from app.services.embeddings import embed_texts
 
 supabase = cast(Any, _supabase)
 
-
-
 async def index_resume(profile_id: str, resume_id: str) -> int:
     """
     Rebuild chunks for a specific resume. Returns the number of chunks written.
     """
-    if not supabase:
-        raise ValueError("Supabase client is not configured. Check your environment variables.")
+    asupabase = await get_asupabase()
+    if not asupabase:
+        raise ValueError("Supabase async client is not configured. Check your environment variables.")
 
     sources: list[tuple[str, str | None, str]] = []  # (source, source_id, text)
 
@@ -48,7 +47,7 @@ async def index_resume(profile_id: str, resume_id: str) -> int:
             sources.append(("resume", resume["id"], piece))
 
     # Wipe existing chunks for this specific resume to keep re-runs idempotent
-    supabase.table("resume_chunks").delete().eq("resume_id", resume_id).execute()
+    await asupabase.table("resume_chunks").delete().eq("resume_id", resume_id).execute()
 
     if not sources:
         return 0
@@ -73,5 +72,5 @@ async def index_resume(profile_id: str, resume_id: str) -> int:
     if not rows:
         return 0
 
-    supabase.table("resume_chunks").insert(rows).execute()
+    await asupabase.table("resume_chunks").insert(rows).execute()
     return len(rows)

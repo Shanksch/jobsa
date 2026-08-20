@@ -36,7 +36,7 @@ async def test_autofill_endpoint(client: AsyncClient, test_profile: dict):
         mock_retrieve.return_value = []
         response = await client.post("/api/autofill", json=form_schema)
 
-    assert response.status_code == 200
+    assert response.status_code == 200, response.text
     data = response.json()
     assert "answers" in data
     assert data["answers"]["first_name"] == "John"

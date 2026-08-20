@@ -17,9 +17,13 @@ async def test_index_resume_happy_path():
     
     with (
         patch("app.services.ingestion.supabase") as mock_supabase,
+        patch("app.services.ingestion.get_asupabase", new_callable=AsyncMock) as mock_get_asupabase,
         patch("app.services.ingestion.chunk_text_semantic", new_callable=AsyncMock) as mock_chunk,
         patch("app.services.ingestion.embed_texts", new_callable=AsyncMock) as mock_embed
     ):
+        mock_asupabase = MagicMock()
+        mock_get_asupabase.return_value = mock_asupabase
+
         # Setup the mocks upfront so we can reference them in asserts
         mock_resumes_table = MagicMock()
         mock_chunks_table = MagicMock()
@@ -31,14 +35,15 @@ async def test_index_resume_happy_path():
         }])
         mock_resumes_table.select.return_value.eq.return_value.eq.return_value = mock_read_execute
         
-        def mock_table_side_effect(name):
-            if name == "resumes":
-                return mock_resumes_table
-            elif name == "resume_chunks":
-                return mock_chunks_table
-            return MagicMock()
-            
-        mock_supabase.table.side_effect = mock_table_side_effect
+        mock_supabase.table.return_value = mock_resumes_table
+        mock_asupabase.table.return_value = mock_chunks_table
+        
+        # Async mock for execute
+        mock_delete_execute = AsyncMock()
+        mock_chunks_table.delete.return_value.eq.return_value.execute = mock_delete_execute
+        
+        mock_insert_execute = AsyncMock()
+        mock_chunks_table.insert.return_value.execute = mock_insert_execute
         
         # Mock chunking to return 3 chunks
         mock_chunk.return_value = ["Chunk 1", "Chunk 2", "Chunk 3"]
@@ -52,10 +57,10 @@ async def test_index_resume_happy_path():
         assert num_written == 3
         
         # Verify old chunks were deleted
-        mock_chunks_table.delete.return_value.eq.return_value.execute.assert_called_once()
+        mock_delete_execute.assert_called_once()
         
         # Verify new chunks were inserted
-        mock_chunks_table.insert.return_value.execute.assert_called_once()
+        mock_insert_execute.assert_called_once()
 
 
 @pytest.mark.asyncio
@@ -66,9 +71,13 @@ async def test_index_resume_no_parsed_text():
     
     with (
         patch("app.services.ingestion.supabase") as mock_supabase,
+        patch("app.services.ingestion.get_asupabase", new_callable=AsyncMock) as mock_get_asupabase,
         patch("app.services.ingestion.chunk_text_semantic", new_callable=AsyncMock) as mock_chunk,
         patch("app.services.ingestion.embed_texts", new_callable=AsyncMock) as mock_embed
     ):
+        mock_asupabase = MagicMock()
+        mock_get_asupabase.return_value = mock_asupabase
+
         mock_resumes_table = MagicMock()
         mock_chunks_table = MagicMock()
         
@@ -80,29 +89,28 @@ async def test_index_resume_no_parsed_text():
         }])
         mock_resumes_table.select.return_value.eq.return_value.eq.return_value = mock_read_execute
         
-        def mock_table_side_effect(name):
-            if name == "resumes":
-                return mock_resumes_table
-            elif name == "resume_chunks":
-                return mock_chunks_table
-            return MagicMock()
-            
-        mock_supabase.table.side_effect = mock_table_side_effect
+        mock_supabase.table.return_value = mock_resumes_table
+        mock_asupabase.table.return_value = mock_chunks_table
         
+        mock_delete_execute = AsyncMock()
+        mock_chunks_table.delete.return_value.eq.return_value.execute = mock_delete_execute
+        
+        mock_insert_execute = AsyncMock()
+        mock_chunks_table.insert.return_value.execute = mock_insert_execute
+
         num_written = await index_resume(profile_id, resume_id)
         
         assert num_written == 0
         mock_chunk.assert_not_called()
         mock_embed.assert_not_called()
-        # It should still delete old chunks to ensure state is clean
-        mock_chunks_table.delete.return_value.eq.return_value.execute.assert_called_once()
-        # But it should not insert anything
-        mock_chunks_table.insert.assert_not_called()
+        mock_delete_execute.assert_called_once()
+        mock_insert_execute.assert_not_called()
 
 
 @pytest.mark.asyncio
 async def test_index_resume_no_supabase():
     """Verify that if supabase client is None, it raises ValueError."""
-    with patch("app.services.ingestion.supabase", None):
-        with pytest.raises(ValueError, match="Supabase client is not configured"):
+    with patch("app.services.ingestion.get_asupabase", new_callable=AsyncMock) as mock_get_asupabase:
+        mock_get_asupabase.return_value = None
+        with pytest.raises(ValueError, match="Supabase async client is not configured"):
             await index_resume("user123", "resume456")

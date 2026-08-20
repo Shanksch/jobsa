@@ -11,7 +11,7 @@ from typing import Any, cast
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from fastapi.responses import Response
 
-from app.core.auth import get_current_user, supabase as _supabase
+from app.core.auth import get_current_user, supabase as _supabase, get_asupabase
 from app.schemas.resume import ResumeListItem, ResumeResponse, ResumeUpdate
 from app.services.ingestion import index_resume
 from app.services.resume_parser import resume_parser_service
@@ -143,7 +143,7 @@ async def upload_resume(
                 supabase.table("user_profiles").update(profile_update).eq("id", profile["id"]).execute()
 
         # 8. Auto-populate all knowledge base tables
-        _do_import_resume_sections(profile["id"], sections)
+        await _do_import_resume_sections(profile["id"], sections)
 
         # 9. Index this specific resume's chunks for vector retrieval
         await index_resume(profile["id"], new_resume["id"])
@@ -216,9 +216,21 @@ def _merge_list(a: list | None, b: list | None) -> list:
     return merged
 
 
-def _do_import_resume_sections(profile_id: str, sections: dict):
-    """Internal helper to insert parsed resume sections into the database tables."""
+async def _batch_upsert(table: str, records: list[dict]) -> None:
+    if not records:
+        return
+    try:
+        asupabase = await get_asupabase()
+        if asupabase:
+            await asupabase.table(table).upsert(records).execute()
+    except Exception as e:
+        print(f"Error bulk upserting {table}: {e}")
+
+
+async def _do_import_resume_sections(profile_id: str, sections: dict) -> None:
+    """Internal helper to insert parsed resume sections into the database tables concurrently."""
     from datetime import datetime
+    import asyncio
 
     print("\n--- DEBUG: PARSED SECTIONS EXTRACTED ---")
     print(sections)
@@ -228,313 +240,183 @@ def _do_import_resume_sections(profile_id: str, sections: dict):
         if not date_str or date_str == "null":
             return None
         try:
-            # Validate format, then return string for Supabase
             datetime.strptime(date_str, "%Y-%m-%d")
             return date_str
         except ValueError:
             return None
 
-    # Education
+    edu_to_upsert = []
     if sections.get("education"):
         existing_rows = (
-            supabase.table("education")
-            .select("id, institution, degree, description")
-            .eq("profile_id", profile_id)
-            .execute()
-            .data
-            or []
+            supabase.table("education").select("id, institution, degree, description").eq("profile_id", profile_id).execute().data or []
         )
         for edu in sections["education"]:
             try:
-                try:
-                    gpa_val = float(edu.get("gpa")) if edu.get("gpa") else None
-                except (ValueError, TypeError):
-                    gpa_val = None
-
                 inst = edu.get("institution", "Unknown")
                 deg = edu.get("degree", "Unknown")
+                gpa_val = float(edu.get("gpa")) if edu.get("gpa") else None
+            except (ValueError, TypeError):
+                gpa_val = None
 
-                match = _find_similar_row(
-                    _normalize_key(inst, deg),
-                    existing_rows,
-                    key_fn=lambda r: _normalize_key(r.get("institution"), r.get("degree")),
-                )
+            match = _find_similar_row(_normalize_key(inst, deg), existing_rows, key_fn=lambda r: _normalize_key(r.get("institution"), r.get("degree")))
 
-                edu_dict = {
-                    "profile_id": profile_id,
-                    "institution": inst,
-                    "degree": deg,
-                    "field_of_study": edu.get("field_of_study"),
-                    "start_date": parse_date(edu.get("start_date")),
-                    "end_date": parse_date(edu.get("end_date")),
-                    "gpa": gpa_val,
-                    "description": edu.get("description"),
-                    "is_current": edu.get("is_current", False),
-                }
+            edu_dict = {
+                "id": match["id"] if match else str(uuid.uuid4()),
+                "profile_id": profile_id,
+                "institution": inst,
+                "degree": deg,
+                "field_of_study": edu.get("field_of_study"),
+                "start_date": parse_date(edu.get("start_date")),
+                "end_date": parse_date(edu.get("end_date")),
+                "gpa": gpa_val,
+                "description": _richer_text(match.get("description"), edu.get("description")) if match else edu.get("description"),
+                "is_current": edu.get("is_current", False),
+            }
+            edu_to_upsert.append(edu_dict)
 
-                if not match:
-                    edu_dict["id"] = str(uuid.uuid4())
-                    supabase.table("education").insert(edu_dict).execute()
-                else:
-                    # Merge: keep the richer description rather than blindly
-                    # overwriting, so a sparser second parse doesn't clobber
-                    # a more detailed earlier one.
-                    edu_dict["description"] = _richer_text(
-                        match.get("description"), edu_dict["description"]
-                    )
-                    supabase.table("education").update(edu_dict).eq(
-                        "id", match["id"]
-                    ).execute()
-            except Exception as e:
-                print(f"Error inserting education: {e}")
-
-    # Work Experience
+    work_to_upsert = []
     if sections.get("work_experience"):
         existing_rows = (
-            supabase.table("work_experience")
-            .select("id, company, title, description, highlights, technologies")
-            .eq("profile_id", profile_id)
-            .execute()
-            .data
-            or []
+            supabase.table("work_experience").select("id, company, title, description, highlights, technologies").eq("profile_id", profile_id).execute().data or []
         )
         for work in sections["work_experience"]:
-            try:
-                comp = work.get("company", "Unknown")
-                job_title = work.get("title", "Unknown")
+            comp = work.get("company", "Unknown")
+            job_title = work.get("title", "Unknown")
+            match = _find_similar_row(_normalize_key(comp, job_title), existing_rows, key_fn=lambda r: _normalize_key(r.get("company"), r.get("title")))
 
-                match = _find_similar_row(
-                    _normalize_key(comp, job_title),
-                    existing_rows,
-                    key_fn=lambda r: _normalize_key(r.get("company"), r.get("title")),
-                )
+            work_dict = {
+                "id": match["id"] if match else str(uuid.uuid4()),
+                "profile_id": profile_id,
+                "company": comp,
+                "title": job_title,
+                "location": work.get("location"),
+                "start_date": parse_date(work.get("start_date")),
+                "end_date": parse_date(work.get("end_date")),
+                "description": _richer_text(match.get("description"), work.get("description")) if match else work.get("description"),
+                "highlights": _merge_list(match.get("highlights"), work.get("highlights")) if match else (work.get("highlights") or []),
+                "technologies": _merge_list(match.get("technologies"), work.get("technologies")) if match else (work.get("technologies") or []),
+                "is_current": work.get("is_current", False),
+            }
+            work_to_upsert.append(work_dict)
 
-                work_dict = {
-                    "profile_id": profile_id,
-                    "company": comp,
-                    "title": job_title,
-                    "location": work.get("location"),
-                    "start_date": parse_date(work.get("start_date")),
-                    "end_date": parse_date(work.get("end_date")),
-                    "description": work.get("description"),
-                    "highlights": work.get("highlights") or [],
-                    "technologies": work.get("technologies") or [],
-                    "is_current": work.get("is_current", False),
-                }
-
-                if not match:
-                    work_dict["id"] = str(uuid.uuid4())
-                    supabase.table("work_experience").insert(work_dict).execute()
-                else:
-                    work_dict["description"] = _richer_text(
-                        match.get("description"), work_dict["description"]
-                    )
-                    work_dict["highlights"] = _merge_list(
-                        match.get("highlights"), work_dict["highlights"]
-                    )
-                    work_dict["technologies"] = _merge_list(
-                        match.get("technologies"), work_dict["technologies"]
-                    )
-                    supabase.table("work_experience").update(work_dict).eq(
-                        "id", match["id"]
-                    ).execute()
-            except Exception as e:
-                print(f"Error inserting work experience: {e}")
-
-    # Projects
+    proj_to_upsert = []
     if sections.get("projects"):
         existing_rows = (
-            supabase.table("projects")
-            .select("id, name, description, technologies, highlights")
-            .eq("profile_id", profile_id)
-            .execute()
-            .data
-            or []
+            supabase.table("projects").select("id, name, description, technologies, highlights").eq("profile_id", profile_id).execute().data or []
         )
         for proj in sections["projects"]:
-            try:
-                proj_name = proj.get("name", "Unknown")
+            proj_name = proj.get("name", "Unknown")
+            match = _find_similar_row(_normalize_key(proj_name), existing_rows, key_fn=lambda r: _normalize_key(r.get("name")), threshold=78)
 
-                match = _find_similar_row(
-                    _normalize_key(proj_name),
-                    existing_rows,
-                    key_fn=lambda r: _normalize_key(r.get("name")),
-                    threshold=78,  # project names vary more ("Aimhyr" vs "Aimhyr — AI Mock Interview Platform")
-                )
+            proj_dict = {
+                "id": match["id"] if match else str(uuid.uuid4()),
+                "profile_id": profile_id,
+                "name": _richer_text(match.get("name"), proj_name) if match else proj_name,
+                "description": _richer_text(match.get("description"), proj.get("description")) if match else proj.get("description"),
+                "url": proj.get("url"),
+                "technologies": _merge_list(match.get("technologies"), proj.get("technologies")) if match else (proj.get("technologies") or []),
+                "highlights": _merge_list(match.get("highlights"), proj.get("highlights")) if match else (proj.get("highlights") or []),
+                "start_date": parse_date(proj.get("start_date")),
+                "end_date": parse_date(proj.get("end_date")),
+            }
+            proj_to_upsert.append(proj_dict)
 
-                proj_dict = {
-                    "profile_id": profile_id,
-                    "name": proj_name,
-                    "description": proj.get("description"),
-                    "url": proj.get("url"),
-                    "technologies": proj.get("technologies") or [],
-                    "highlights": proj.get("highlights") or [],
-                    "start_date": parse_date(proj.get("start_date")),
-                    "end_date": parse_date(proj.get("end_date")),
-                }
-
-                if not match:
-                    proj_dict["id"] = str(uuid.uuid4())
-                    supabase.table("projects").insert(proj_dict).execute()
-                else:
-                    proj_dict["description"] = _richer_text(
-                        match.get("description"), proj_dict["description"]
-                    )
-                    proj_dict["technologies"] = _merge_list(
-                        match.get("technologies"), proj_dict["technologies"]
-                    )
-                    proj_dict["highlights"] = _merge_list(
-                        match.get("highlights"), proj_dict["highlights"]
-                    )
-                    # Keep the longer/more descriptive name too (e.g. prefer
-                    # "Aimhyr — AI Mock Interview Platform" over bare "Aimhyr")
-                    proj_dict["name"] = _richer_text(match.get("name"), proj_name)
-                    supabase.table("projects").update(proj_dict).eq(
-                        "id", match["id"]
-                    ).execute()
-            except Exception as e:
-                print(f"Error inserting projects: {e}")
-
-    # Skills
-    if sections.get("skills"):
-        # Fetch the global skills table ONCE outside the loop (Massive N+1 optimization)
-        all_skills = supabase.table("skills").select("id, name").execute().data or []
-        
-        for skill in sections["skills"]:
-            try:
-                try:
-                    yoe = (
-                        float(skill.get("years_experience"))
-                        if skill.get("years_experience")
-                        else None
-                    )
-                except (ValueError, TypeError):
-                    yoe = None
-
-                skill_name = skill.get("name", "Unknown").strip()
-
-                skill_match = _find_similar_row(
-                    _normalize_key(skill_name),
-                    all_skills,
-                    key_fn=lambda r: _normalize_key(r.get("name")),
-                    threshold=90,
-                )
-                if skill_match:
-                    skill_id = skill_match["id"]
-                else:
-                    insert_res = (
-                        supabase.table("skills")
-                        .insert(
-                            {
-                                "id": str(uuid.uuid4()),
-                                "name": skill_name,
-                                "category": skill.get("category"),
-                            }
-                        )
-                        .execute()
-                    )
-                    if insert_res.data:
-                        skill_id = insert_res.data[0]["id"]
-                        all_skills.append({"id": skill_id, "name": skill_name}) # Add to local cache
-                    else:
-                        continue
-
-                # 2. Link skill to user profile
-                user_skill_res = (
-                    supabase.table("user_skills")
-                    .select("id, proficiency, years_experience")
-                    .eq("profile_id", profile_id)
-                    .eq("skill_id", skill_id)
-                    .execute()
-                )
-                if not user_skill_res.data:
-                    supabase.table("user_skills").insert(
-                        {
-                            "id": str(uuid.uuid4()),
-                            "profile_id": profile_id,
-                            "skill_id": skill_id,
-                            "proficiency": skill.get("proficiency"),
-                            "years_experience": yoe,
-                        }
-                    ).execute()
-                else:
-                    # Merge rather than overwrite: keep the higher
-                    # proficiency/years seen across parses instead of
-                    # letting a sparser second parse downgrade the record.
-                    existing_link = user_skill_res.data[0]
-                    proficiency_rank = {
-                        "beginner": 0,
-                        "intermediate": 1,
-                        "proficient": 2,
-                        "advanced": 3,
-                        "expert": 4,
-                    }
-                    new_prof = skill.get("proficiency")
-                    old_prof = existing_link.get("proficiency")
-                    best_prof = max(
-                        [p for p in (new_prof, old_prof) if p],
-                        key=lambda p: proficiency_rank.get(str(p).lower(), -1),
-                        default=new_prof or old_prof,
-                    )
-                    best_years = max(
-                        [y for y in (yoe, existing_link.get("years_experience")) if y is not None],
-                        default=None,
-                    )
-                    supabase.table("user_skills").update(
-                        {"proficiency": best_prof, "years_experience": best_years}
-                    ).eq("id", existing_link["id"]).execute()
-            except Exception as e:
-                print(f"Error inserting skills: {e}")
-
-    # Certifications
+    cert_to_upsert = []
     if sections.get("certifications"):
         existing_rows = (
-            supabase.table("certifications")
-            .select("id, name, issuer, credential_id")
-            .eq("profile_id", profile_id)
-            .execute()
-            .data
-            or []
+            supabase.table("certifications").select("id, name, issuer, credential_id").eq("profile_id", profile_id).execute().data or []
         )
         for cert in sections["certifications"]:
+            cert_name = cert.get("name", "Unknown")
+            cert_issuer = cert.get("issuer")
+            match = _find_similar_row(_normalize_key(cert_name, cert_issuer), existing_rows, key_fn=lambda r: _normalize_key(r.get("name"), r.get("issuer")), threshold=75)
+
+            cert_dict = {
+                "id": match["id"] if match else str(uuid.uuid4()),
+                "profile_id": profile_id,
+                "name": _richer_text(match.get("name"), cert_name) if match else cert_name,
+                "issuer": cert_issuer,
+                "issue_date": parse_date(cert.get("issue_date")),
+                "expiry_date": parse_date(cert.get("expiry_date")),
+                "credential_id": cert.get("credential_id") or (match or {}).get("credential_id"),
+                "credential_url": cert.get("credential_url"),
+            }
+            cert_to_upsert.append(cert_dict)
+
+    user_skills_to_upsert = []
+    if sections.get("skills"):
+        all_skills = supabase.table("skills").select("id, name").execute().data or []
+        existing_user_skills = supabase.table("user_skills").select("id, skill_id, proficiency, years_experience").eq("profile_id", profile_id).execute().data or []
+        
+        new_skills_to_insert = []
+        
+        for skill in sections["skills"]:
+            skill_name = skill.get("name", "Unknown").strip()
+            skill_match = _find_similar_row(_normalize_key(skill_name), all_skills, key_fn=lambda r: _normalize_key(r.get("name")), threshold=90)
+            
+            if skill_match:
+                skill_id = skill_match["id"]
+            else:
+                skill_id = str(uuid.uuid4())
+                new_skills_to_insert.append({
+                    "id": skill_id,
+                    "name": skill_name,
+                    "category": skill.get("category"),
+                })
+                all_skills.append({"id": skill_id, "name": skill_name})
+
             try:
-                cert_name = cert.get("name", "Unknown")
-                cert_issuer = cert.get("issuer")
+                yoe = float(skill.get("years_experience")) if skill.get("years_experience") else None
+            except (ValueError, TypeError):
+                yoe = None
 
-                match = _find_similar_row(
-                    _normalize_key(cert_name, cert_issuer),
-                    existing_rows,
-                    key_fn=lambda r: _normalize_key(r.get("name"), r.get("issuer")),
-                    threshold=75,
-                )
-
-                cert_dict = {
+            existing_link = next((us for us in existing_user_skills if us["skill_id"] == skill_id), None)
+            
+            if existing_link:
+                proficiency_rank = {"beginner": 0, "intermediate": 1, "proficient": 2, "advanced": 3, "expert": 4}
+                new_prof = skill.get("proficiency")
+                old_prof = existing_link.get("proficiency")
+                best_prof = max([p for p in (new_prof, old_prof) if p], key=lambda p: proficiency_rank.get(str(p).lower(), -1), default=new_prof or old_prof)
+                best_years = max([y for y in (yoe, existing_link.get("years_experience")) if y is not None], default=None)
+                
+                user_skills_to_upsert.append({
+                    "id": existing_link["id"],
                     "profile_id": profile_id,
-                    "name": cert_name,
-                    "issuer": cert_issuer,
-                    "issue_date": parse_date(cert.get("issue_date")),
-                    "expiry_date": parse_date(cert.get("expiry_date")),
-                    "credential_id": cert.get("credential_id") or (match or {}).get("credential_id"),
-                    "credential_url": cert.get("credential_url"),
-                }
+                    "skill_id": skill_id,
+                    "proficiency": best_prof,
+                    "years_experience": best_years
+                })
+            else:
+                user_skills_to_upsert.append({
+                    "id": str(uuid.uuid4()),
+                    "profile_id": profile_id,
+                    "skill_id": skill_id,
+                    "proficiency": skill.get("proficiency"),
+                    "years_experience": yoe
+                })
 
-                if not match:
-                    cert_dict["id"] = str(uuid.uuid4())
-                    supabase.table("certifications").insert(cert_dict).execute()
-                else:
-                    cert_dict["name"] = _richer_text(match.get("name"), cert_name)
-                    supabase.table("certifications").update(cert_dict).eq(
-                        "id", match["id"]
-                    ).execute()
+        if new_skills_to_insert:
+            # We still need to block-insert the global skills before we upsert user_skills 
+            # to avoid FK errors, but we can do it in one bulk insert!
+            try:
+                supabase.table("skills").insert(new_skills_to_insert).execute()
             except Exception as e:
-                print(f"Error inserting certifications: {e}")
+                print(f"Error bulk inserting new skills: {e}")
 
-    # Summary
+    # Fire all updates concurrently
+    await asyncio.gather(
+        _batch_upsert("education", edu_to_upsert),
+        _batch_upsert("work_experience", work_to_upsert),
+        _batch_upsert("projects", proj_to_upsert),
+        _batch_upsert("certifications", cert_to_upsert),
+        _batch_upsert("user_skills", user_skills_to_upsert),
+    )
+
     if sections.get("summary"):
         try:
-            supabase.table("user_profiles").update({"summary": sections["summary"]}).eq(
-                "id", profile_id
-            ).execute()
+            asupabase = await get_asupabase()
+            if asupabase:
+                await asupabase.table("user_profiles").update({"summary": sections["summary"]}).eq("id", profile_id).execute()
         except Exception as e:
             print(f"Error updating summary: {e}")
 
@@ -700,7 +582,7 @@ async def import_resume_to_knowledge_base(
     sections = resume["parsed_sections"]
 
     # 8. Auto-populate all knowledge base tables
-    _do_import_resume_sections(profile_id, sections)
+    await _do_import_resume_sections(profile_id, sections)
 
     # 9. Index this specific resume's chunks for vector retrieval
     await index_resume(profile_id, str(resume_id))
