@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "JobSA — AI Job Application Copilot",
   "description": "Intelligently autofill job applications across ATS platforms with AI-powered matching and human review.",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "icons": {
     "16": "logo.png",
     "48": "logo.png",
@@ -62,7 +62,7 @@
     "storage"
   ],
   "host_permissions": [
-    "http://34.41.44.108:8000/*",
+    "https://jobsa-backend-307842804501.us-central1.run.app/*",
     "https://xhnzyznqeojaqqzutdfp.supabase.co/*",
     "https://jobsa-web-dashboard.vercel.app/*"
   ],

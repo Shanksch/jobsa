@@ -218,7 +218,7 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
 
 async function getBackendUrl(): Promise<string> {
   // Use the deployed backend URL
-  return 'http://34.41.44.108:8000';
+  return 'https://jobsa-backend-307842804501.us-central1.run.app';
 }
 
 const MAX_RETRIES = 7;

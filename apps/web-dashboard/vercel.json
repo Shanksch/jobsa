@@ -1,6 +1,6 @@
 {
   "rewrites": [
-    { "source": "/api/(.*)", "destination": "http://34.41.44.108:8000/api/$1" },
+    { "source": "/api/(.*)", "destination": "https://jobsa-backend-307842804501.us-central1.run.app/api/$1" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
