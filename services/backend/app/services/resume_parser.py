@@ -12,6 +12,7 @@ from typing import Any
 import instructor
 import pymupdf4llm
 import structlog
+import asyncio
 from docx import Document
 from litellm import acompletion
 from app.core.llm_router import router
@@ -27,7 +28,7 @@ logger = structlog.get_logger()
 class ParsedResume:
     text: str
     markdown: str
-    sections: dict
+    sections: dict[str, Any]
 
 
 class SkillItem(BaseModel):
@@ -102,6 +103,10 @@ class ResumeSections(BaseModel):
 class ResumeParserService:
     """Service to extract and structure content from resumes using LLMs."""
 
+    def __init__(self) -> None:
+        # Limit concurrent PDF extractions to prevent OOM errors
+        self._parse_semaphore = asyncio.Semaphore(2)
+
     @observe(name="extract-pdf-text")
     def extract_text_from_pdf(self, file_path: str) -> tuple[str, str]:
         """Extract raw text and markdown from PDF using pymupdf4llm."""
@@ -134,7 +139,7 @@ class ResumeParserService:
             raise RuntimeError(f"Failed to extract text from DOCX: {e}")
 
     @observe(name="structure-resume", as_type="generation")
-    async def structure_resume(self, markdown_content: str) -> dict:
+    async def structure_resume(self, markdown_content: str) -> dict[str, Any]:
         """Use LiteLLM and instructor to extract structured fields from the markdown resume content."""
         logger.info(
             "structuring_resume_llm", model="jobsa-autofill"
@@ -182,12 +187,15 @@ Resume content to parse:
     async def parse_resume(self, file_path: str) -> ParsedResume:
         """Parse resume file (PDF or DOCX) to extract raw text, markdown, and structured sections."""
         ext = Path(file_path).suffix.lower()
-        if ext == ".pdf":
-            text, markdown = self.extract_text_from_pdf(file_path)
-        elif ext in (".docx", ".doc"):
-            text, markdown = self.extract_text_from_docx(file_path)
-        else:
-            raise ValueError(f"Unsupported file format: {ext}")
+        
+        # Limit concurrency for memory-intensive document parsing
+        async with self._parse_semaphore:
+            if ext == ".pdf":
+                text, markdown = await asyncio.to_thread(self.extract_text_from_pdf, file_path)
+            elif ext in (".docx", ".doc"):
+                text, markdown = await asyncio.to_thread(self.extract_text_from_docx, file_path)
+            else:
+                raise ValueError(f"Unsupported file format: {ext}")
 
         structured_sections = await self.structure_resume(markdown)
 
